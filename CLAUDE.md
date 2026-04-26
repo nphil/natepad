@@ -38,7 +38,7 @@ IPA download: GitHub Releases → "latest" pre-release (overwritten on each main
 ## Architecture rules
 - **No custom `.glass` / `.glassProminent` button style definitions** — iOS 26 SDK provides these natively. Adding custom ones causes "ambiguous use of 'glass'" compile error.
 - Per-mode notepad state: `modeState: [NotepadMode: ModeState]` dict — each mode has its own `input` and `output` strings, prevents content bleed.
-- File import uses `DocumentPickerOpener` (a `UIViewControllerRepresentable` with a dummy host VC that calls `present(_:animated:)` via `.background`) — SwiftUI `.fileImporter` drops its callback inside sheets; wrapping `UIDocumentPickerViewController` as a SwiftUI sheet causes its `delegate` (which is `weak`) to deallocate before "Open" is tapped.
+- File import: present `UIDocumentPickerViewController` directly from `topMostViewController()` (walks `UIApplication.shared.connectedScenes` to the active window's top presented VC). Use a self-retaining `PickerDelegate` (sets `strongSelf = self` in init, releases it in delegate methods) — `UIDocumentPickerViewController.delegate` is `weak`, so anything else gets deallocated mid-flight. Do NOT use SwiftUI `.fileImporter` (drops callback inside sheets), `.sheet { DocumentPicker }` (delegate dies), or `.background { UIViewControllerRepresentable }` (host VC not in proper hierarchy, present silently no-ops).
 - Keys stored in iOS Keychain with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
 
 ## Common tasks

@@ -81,48 +81,56 @@ struct GenerateKeySheet: View {
     }
 }
 
-// MARK: - Document picker (UIKit bridge)
-// Pattern: dummy UIViewController presented as .background, then UIDocumentPickerViewController
-// is presented from it using UIKit's own present(_:animated:). This avoids two problems:
-//   1. SwiftUI .fileImporter drops its callback when the modifier is inside a sheet.
-//   2. UIDocumentPickerViewController.delegate is weak — wrapping it as a SwiftUI sheet
-//      lets the coordinator deallocate before "Open" is tapped, silently killing the callback.
+// MARK: - Document picker bridge
+//
+// Why this approach (after two failed attempts):
+//   • SwiftUI .fileImporter drops its callback when the modifier sits inside a sheet.
+//   • Wrapping UIDocumentPickerViewController as a SwiftUI sheet lets the coordinator
+//     deallocate (its .delegate is weak) before the user taps "Open".
+//   • Wrapping it as a UIViewControllerRepresentable in .background creates a UIViewController
+//     that isn't reliably attached to the view-controller hierarchy — present(_:animated:)
+//     can no-op silently.
+//
+// The bulletproof fix: walk the active window scene to the top-most presented view
+// controller and present the picker directly from there with UIKit's own API. The delegate
+// retains itself in init and releases that retain in its own callback methods, so it is
+// guaranteed to be alive between "Open" tap and callback fire.
 
-private struct DocumentPickerOpener: UIViewControllerRepresentable {
-    @Binding var isPresented: Bool
-    let onPickedURLs: ([URL]) -> Void
+private final class PickerDelegate: NSObject, UIDocumentPickerDelegate {
+    private var strongSelf: PickerDelegate?
+    private let onPicked: ([URL]) -> Void
+    private let onCancel: () -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
-
-    func makeUIViewController(context: Context) -> UIViewController {
-        context.coordinator.hostVC
+    init(picker: UIDocumentPickerViewController,
+         onPicked: @escaping ([URL]) -> Void,
+         onCancel: @escaping () -> Void = {}) {
+        self.onPicked = onPicked
+        self.onCancel = onCancel
+        super.init()
+        picker.delegate = self
+        self.strongSelf = self  // self-retain until a delegate method fires
     }
 
-    func updateUIViewController(_ vc: UIViewController, context: Context) {
-        context.coordinator.parent = self
-        guard isPresented, vc.presentedViewController == nil else { return }
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data, .plainText])
-        picker.allowsMultipleSelection = true
-        picker.shouldShowFileExtensions = true
-        picker.delegate = context.coordinator
-        vc.present(picker, animated: true)
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        onPicked(urls)
+        strongSelf = nil
     }
 
-    class Coordinator: NSObject, UIDocumentPickerDelegate {
-        var parent: DocumentPickerOpener
-        let hostVC = UIViewController()
-
-        init(parent: DocumentPickerOpener) { self.parent = parent }
-
-        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-            parent.isPresented = false
-            parent.onPickedURLs(urls)
-        }
-
-        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-            parent.isPresented = false
-        }
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        onCancel()
+        strongSelf = nil
     }
+}
+
+private func topMostViewController() -> UIViewController? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
+    let window = scene?.windows.first(where: \.isKeyWindow) ?? scene?.windows.first
+    var top = window?.rootViewController
+    while let presented = top?.presentedViewController {
+        top = presented
+    }
+    return top
 }
 
 // MARK: - Import
@@ -132,7 +140,6 @@ struct ImportKeySheet: View {
     @Environment(\.dismiss) var dismiss
 
     @State private var pastedText = ""
-    @State private var showFilePicker = false
     @State private var resultMessage: String?
     @State private var isWorking = false
 
@@ -141,11 +148,11 @@ struct ImportKeySheet: View {
             Form {
                 Section {
                     Button {
-                        showFilePicker = true
+                        presentPicker()
                     } label: {
                         Label("Choose file(s)…", systemImage: "doc.badge.plus")
                     }
-                    Text("Accepts any text file — .asc, .txt, .key, .gpg, .pgp")
+                    Text("Accepts any file — .asc, .txt, .key, .gpg, .pgp")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Section("Or paste an armored block") {
@@ -172,12 +179,22 @@ struct ImportKeySheet: View {
                     .disabled(isWorking || pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .background(
-                DocumentPickerOpener(isPresented: $showFilePicker, onPickedURLs: readFiles)
-            )
             .presentationDetents([.large])
             .presentationBackground(.regularMaterial)
         }
+    }
+
+    private func presentPicker() {
+        guard let presenter = topMostViewController() else {
+            resultMessage = "Could not find a window to present the file picker from."
+            return
+        }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data])
+        picker.allowsMultipleSelection = true
+        picker.shouldShowFileExtensions = true
+        _ = PickerDelegate(picker: picker,
+                           onPicked: { urls in readFiles(urls) })
+        presenter.present(picker, animated: true)
     }
 
     private func readFiles(_ urls: [URL]) {
