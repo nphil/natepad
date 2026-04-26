@@ -5,6 +5,10 @@ struct NatepadApp: App {
     @StateObject private var store = KeyStore()
     @StateObject private var biometric = BiometricGate()
 
+    init() {
+        appLog("=== Natepad launched ===")
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()

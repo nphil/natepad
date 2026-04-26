@@ -28,6 +28,7 @@ IPA download: GitHub Releases → "latest" pre-release (overwritten on each main
 | `KeyRecord.swift` | `struct KeyRecord: Identifiable, Codable` — fingerprint, userIDs, armored keys |
 | `KeyStore.swift` | `@MainActor ObservableObject` — Keychain persistence, add/delete keys |
 | `BiometricGate.swift` | Face ID / Touch ID gate, `requireUnlock` in UserDefaults |
+| `AppLogger.swift` | In-memory logger (`appLog(...)`) + `LogsView` reachable from Settings → Diagnostics. Use this to debug — ask the user to copy logs and share. |
 | `project.yml` | xcodegen spec — deployment target, signing, SPM deps, asset catalog |
 | `Assets.xcassets/` | App icon (AppIcon.png 1024×1024, icon option 1 "Lock/Vault") |
 

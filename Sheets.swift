@@ -96,7 +96,7 @@ struct GenerateKeySheet: View {
 // retains itself in init and releases that retain in its own callback methods, so it is
 // guaranteed to be alive between "Open" tap and callback fire.
 
-private final class PickerDelegate: NSObject, UIDocumentPickerDelegate {
+private final class PickerDelegate: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
     private var strongSelf: PickerDelegate?
     private let onPicked: ([URL]) -> Void
     private let onCancel: () -> Void
@@ -108,15 +108,34 @@ private final class PickerDelegate: NSObject, UIDocumentPickerDelegate {
         self.onCancel = onCancel
         super.init()
         picker.delegate = self
+        picker.presentationController?.delegate = self
         self.strongSelf = self  // self-retain until a delegate method fires
+        appLog("PickerDelegate: init, retained self, picker.delegate set", level: "DEBUG")
+    }
+
+    deinit {
+        // Note: deinit can run on any thread; use synchronous print rather than appLog.
+        print("[DEBUG] PickerDelegate: deinit")
     }
 
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        appLog("PickerDelegate: didPickDocumentsAt \(urls.count) URLs")
+        for url in urls {
+            appLog("  picked: \(url.lastPathComponent) [\(url.scheme ?? "?")]")
+        }
         onPicked(urls)
         strongSelf = nil
     }
 
     func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        appLog("PickerDelegate: documentPickerWasCancelled")
+        onCancel()
+        strongSelf = nil
+    }
+
+    // Catches swipe-down dismissal that bypasses the cancel button.
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        appLog("PickerDelegate: presentationControllerDidDismiss (swipe-down)", level: "WARN")
         onCancel()
         strongSelf = nil
     }
@@ -185,56 +204,95 @@ struct ImportKeySheet: View {
     }
 
     private func presentPicker() {
+        appLog("=== presentPicker tapped ===")
         guard let presenter = topMostViewController() else {
+            appLog("topMostViewController returned NIL", level: "ERROR")
             resultMessage = "Could not find a window to present the file picker from."
             return
+        }
+        appLog("topMostViewController = \(type(of: presenter))")
+        if let already = presenter.presentedViewController {
+            appLog("presenter ALREADY presenting: \(type(of: already))", level: "WARN")
         }
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data])
         picker.allowsMultipleSelection = true
         picker.shouldShowFileExtensions = true
+        appLog("created UIDocumentPickerViewController, types=[.data], multi=true")
         _ = PickerDelegate(picker: picker,
-                           onPicked: { urls in readFiles(urls) })
-        presenter.present(picker, animated: true)
+                           onPicked: { urls in
+                               appLog("onPicked closure invoked")
+                               readFiles(urls)
+                           },
+                           onCancel: {
+                               appLog("onCancel closure invoked")
+                           })
+        appLog("calling presenter.present(picker)")
+        presenter.present(picker, animated: true) {
+            appLog("present(picker) completion fired")
+        }
     }
 
     private func readFiles(_ urls: [URL]) {
+        appLog("readFiles: received \(urls.count) URL(s)")
         var combined = pastedText
         var readErrors: [String] = []
         for url in urls {
+            appLog("readFiles: processing \(url.lastPathComponent)")
             let accessed = url.startAccessingSecurityScopedResource()
-            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            appLog("  startAccessingSecurityScopedResource = \(accessed)")
+            defer {
+                if accessed {
+                    url.stopAccessingSecurityScopedResource()
+                    appLog("  stopAccessingSecurityScopedResource", level: "DEBUG")
+                }
+            }
             do {
                 let data = try Data(contentsOf: url)
+                appLog("  read \(data.count) bytes")
                 let text = String(data: data, encoding: .utf8)
                     ?? String(data: data, encoding: .isoLatin1)
                     ?? ""
+                appLog("  decoded \(text.count) chars (utf8 or latin-1)")
                 if !text.isEmpty {
                     if !combined.isEmpty { combined += "\n\n" }
                     combined += text
+                } else {
+                    appLog("  text was EMPTY after decoding", level: "WARN")
                 }
             } catch {
+                appLog("  read error: \(error.localizedDescription)", level: "ERROR")
                 readErrors.append(url.lastPathComponent + ": " + error.localizedDescription)
             }
         }
         pastedText = combined
+        appLog("readFiles: combined.count = \(combined.count)")
         if !readErrors.isEmpty {
             resultMessage = "Could not read: " + readErrors.joined(separator: ", ")
         }
         if !combined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            appLog("readFiles: triggering runImport")
             Task { await runImport() }
+        } else {
+            appLog("readFiles: combined is empty, NOT running import", level: "WARN")
         }
     }
 
     private func runImport() async {
+        appLog("runImport: starting, pastedText.count = \(pastedText.count)")
         isWorking = true
         defer { isWorking = false }
         do {
             let parsed = try PGPService.parseKeys(from: pastedText)
-            for rec in parsed { store.add(rec) }
+            appLog("runImport: parseKeys returned \(parsed.count) record(s)")
+            for rec in parsed {
+                appLog("  parsed key fp=\(rec.shortID) hasPriv=\(rec.hasPrivate) hasPub=\(rec.hasPublic)")
+                store.add(rec)
+            }
             resultMessage = "Imported \(parsed.count) key\(parsed.count == 1 ? "" : "s")."
             try? await Task.sleep(nanoseconds: 400_000_000)
             dismiss()
         } catch {
+            appLog("runImport: parseKeys threw: \(error.localizedDescription)", level: "ERROR")
             resultMessage = "Import failed: \(error.localizedDescription)"
         }
     }

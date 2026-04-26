@@ -163,6 +163,15 @@ struct SettingsView: View {
                     LabeledContent("Engine", value: "ObjectivePGP")
                     Link("Source on GitHub", destination: URL(string: "https://github.com")!)
                 }
+                Section("Diagnostics") {
+                    NavigationLink {
+                        LogsView()
+                    } label: {
+                        Label("View logs", systemImage: "doc.text.magnifyingglass")
+                    }
+                    Text("Captures detailed logs of in-app operations. Tap “Copy all” to share for debugging.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 Section {
                     Text("Private keys are passphrase-encrypted by OpenPGP and stored in the iOS Keychain (WhenUnlockedThisDeviceOnly). Always export a backup before relying on this app.")
                         .font(.caption).foregroundStyle(.secondary)
