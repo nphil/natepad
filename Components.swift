@@ -172,3 +172,45 @@ struct SettingsView: View {
         }
     }
 }
+
+// MARK: - Custom glass button styles
+// `.buttonStyle(.glass)` and `.buttonStyle(.glassProminent)` are NOT real SwiftUI API names.
+// These custom styles replicate the look using materials, working on iOS 16+ and looking
+// native on iOS 26 (where material backgrounds automatically pick up the Liquid Glass treatment).
+
+struct GlassButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(.white.opacity(0.1), lineWidth: 0.5)
+            )
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+struct GlassProminentButtonStyle: ButtonStyle {
+    @Environment(\.controlSize) var controlSize
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, controlSize == .small ? 10 : 14)
+            .padding(.vertical, controlSize == .small ? 6 : 8)
+            .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .foregroundStyle(.white)
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == GlassButtonStyle {
+    static var glass: GlassButtonStyle { GlassButtonStyle() }
+}
+
+extension ButtonStyle where Self == GlassProminentButtonStyle {
+    static var glassProminent: GlassProminentButtonStyle { GlassProminentButtonStyle() }
+}

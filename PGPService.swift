@@ -162,7 +162,8 @@ enum PGPService {
                 data,
                 andVerifySignature: true,
                 using: allKeys,
-                passphraseForKey: { key in
+                passphraseForKey: { optKey in
+                    guard let key = optKey else { return nil }
                     let id = key.keyID.longIdentifier.uppercased()
                     if let rec = keyIDToRecord[id] {
                         return passphraseProvider(rec)

@@ -88,7 +88,7 @@ final class KeyStore: ObservableObject {
         ]
         let status = SecItemUpdate(baseQuery as CFDictionary, attrs as CFDictionary)
         if status == errSecItemNotFound {
-            var insert = baseQuery.merging(attrs) { _, new in new }
+            let insert = baseQuery.merging(attrs) { _, new in new }
             SecItemAdd(insert as CFDictionary, nil)
         }
     }

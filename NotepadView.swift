@@ -305,7 +305,7 @@ struct NotepadView: View {
 
         // We don't know which key is needed yet, so collect passphrases lazily via the provider closure.
         // The provider runs on the main actor and can present the sheet.
-        var collected: [String: String] = [:]
+        let collected: [String: String] = [:]
         let plaintext = try PGPService.decrypt(
             armoredMessage: input,
             using: store.privateKeys,
