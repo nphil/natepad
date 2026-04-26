@@ -1,0 +1,147 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+# Needed so GITHUB_TOKEN can create/update releases
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Archive & sign
+    runs-on: macos-15   # Xcode 16+ available; bump to macos-16 once available for iOS 26 SDK
+
+    env:
+      SCHEME: Natepad
+      PROJECT: Natepad.xcodeproj
+      ARCHIVE_PATH: build/Natepad.xcarchive
+      EXPORT_PATH: build/export
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        # List available versions with: ls /Applications/Xcode*.app
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      # ---- Signing setup ----
+      # Imports your .p12 cert and .mobileprovision from secrets into a temp keychain.
+      # The keychain is destroyed in the cleanup step even if the build fails.
+      - name: Set up signing
+        env:
+          BUILD_CERT_P12_BASE64:       ${{ secrets.BUILD_CERT_P12_BASE64 }}
+          BUILD_CERT_P12_PASSWORD:     ${{ secrets.BUILD_CERT_P12_PASSWORD }}
+          PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD:           ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+
+          echo "$BUILD_CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
+          echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$BUILD_CERT_P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$PROFILE_PATH")")
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
+          echo "PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
+
+      - name: Resolve Swift packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME"
+
+      - name: Archive
+        env:
+          DEVELOPMENT_TEAM:       ${{ secrets.DEVELOPMENT_TEAM }}
+          PROVISIONING_PROFILE_NAME: ${{ secrets.PROVISIONING_PROFILE_NAME }}
+        run: |
+          xcodebuild archive \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$ARCHIVE_PATH" \
+            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_NAME" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Development" \
+            | xcpretty || exit ${PIPESTATUS[0]}
+
+      - name: Inject signing into ExportOptions.plist
+        env:
+          DEVELOPMENT_TEAM:          ${{ secrets.DEVELOPMENT_TEAM }}
+          PROVISIONING_PROFILE_NAME: ${{ secrets.PROVISIONING_PROFILE_NAME }}
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :teamID $DEVELOPMENT_TEAM" ExportOptions.plist
+          /usr/libexec/PlistBuddy -c "Set :provisioningProfiles:com.natepad.app $PROVISIONING_PROFILE_NAME" ExportOptions.plist
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist ExportOptions.plist \
+            | xcpretty || exit ${PIPESTATUS[0]}
+
+      # ---- Release ----
+      # On every push to main  → overwrite the rolling "latest" pre-release.
+      # On a version tag push  → create a proper versioned release (e.g. v1.2).
+      # Either way the .ipa is a direct-download asset on the Releases page.
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false"             >> "$GITHUB_OUTPUT"
+            echo "title=${GITHUB_REF#refs/tags/}"   >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest"            >> "$GITHUB_OUTPUT"
+            echo "prerelease=true"       >> "$GITHUB_OUTPUT"
+            echo "title=Latest build"    >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Delete previous "latest" release (if rolling update)
+        if: steps.tag.outputs.tag == 'latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+
+      - name: Publish release with IPA
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          gh release create "${{ steps.tag.outputs.tag }}" \
+            "$EXPORT_PATH"/*.ipa \
+            --title "${{ steps.tag.outputs.title }}" \
+            --notes "Built from \`$SHORT_SHA\` on $(date -u +'%Y-%m-%d %H:%M UTC')" \
+            ${{ steps.tag.outputs.prerelease == 'true' && '--prerelease' || '' }}
+
+      # ---- Cleanup ----
+      - name: Tear down keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/build.keychain-db" || true

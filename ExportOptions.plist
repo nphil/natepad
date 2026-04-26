@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Set this to "ad-hoc" if you'll install via diawi/AltStore/sideload,
+         or "development" if you're installing only on registered devices.
+         Use "app-store" if you're shipping to TestFlight/App Store. -->
+    <key>method</key>
+    <string>development</string>
+
+    <!-- Replace with your team ID from developer.apple.com -->
+    <key>teamID</key>
+    <string>REPLACE_TEAM_ID</string>
+
+    <key>signingStyle</key>
+    <string>manual</string>
+
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.natepad.app</key>
+        <string>REPLACE_PROVISIONING_PROFILE_NAME</string>
+    </dict>
+
+    <key>signingCertificate</key>
+    <string>Apple Development</string>
+
+    <key>compileBitcode</key>
+    <false/>
+
+    <key>uploadSymbols</key>
+    <false/>
+
+    <key>stripSwiftSymbols</key>
+    <true/>
+</dict>
+</plist>

@@ -1,0 +1,53 @@
+# xcodegen project spec.
+# Run `xcodegen generate` (locally or in CI) to produce Natepad.xcodeproj.
+name: Natepad
+options:
+  bundleIdPrefix: com.natepad
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    DEVELOPMENT_TEAM: "$(DEVELOPMENT_TEAM)"   # injected from CI
+    CODE_SIGN_STYLE: Manual
+
+packages:
+  ObjectivePGP:
+    url: https://github.com/krzyzanowskim/ObjectivePGP
+    from: "0.99.4"
+
+targets:
+  Natepad:
+    type: application
+    platform: iOS
+    sources:
+      - path: .
+        excludes:
+          - "**/*.md"
+          - "project.yml"
+          - ".github/**"
+          - "ExportOptions.plist"
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Natepad
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        NSFaceIDUsageDescription: "Unlock Natepad to access your PGP keys"
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.natepad.app
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_PREVIEWS: "YES"
+    dependencies:
+      - package: ObjectivePGP
