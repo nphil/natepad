@@ -80,6 +80,30 @@ final class ThemeManager: ObservableObject {
     func set(_ theme: AppTheme) { current = theme }
 }
 
+// MARK: - Atmospheric background
+
+/// Full-screen background with blurred colour orbs on black — used inside each tab's NavigationStack.
+struct ThemeBackground: View {
+    @EnvironmentObject var theme: ThemeManager
+
+    var body: some View {
+        ZStack {
+            Color.black
+            Circle()
+                .fill(theme.current.accentColor.opacity(0.60))
+                .frame(width: 380)
+                .blur(radius: 120)
+                .offset(x: -90, y: -220)
+            Circle()
+                .fill(theme.current.accentColor.opacity(0.40))
+                .frame(width: 340)
+                .blur(radius: 100)
+                .offset(x: 150, y: 320)
+        }
+        .ignoresSafeArea()
+    }
+}
+
 // MARK: - Theme swatch
 
 struct ThemeSwatch: View {

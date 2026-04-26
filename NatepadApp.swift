@@ -18,6 +18,8 @@ struct NatepadApp: App {
 
         UITableView.appearance().backgroundColor = .clear
         UITableViewCell.appearance().backgroundColor = .clear
+        UIScrollView.appearance().backgroundColor = .clear
+        UICollectionView.appearance().backgroundColor = .clear
     }
 
     var body: some Scene {
@@ -59,6 +61,9 @@ struct ContentView: View {
     @EnvironmentObject var theme: ThemeManager
 
     var body: some View {
+        // ThemeBackground is applied inside each tab's NavigationStack so it renders
+        // within the correct layer — putting it behind TabView doesn't work because
+        // NavigationStack renders on an opaque system surface that sits in front.
         TabView {
             NotepadView()
                 .tabItem { Label("Notepad", systemImage: "note.text") }
@@ -67,16 +72,6 @@ struct ContentView: View {
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
-        // Gradient sits behind all tab content. Nav bar and form backgrounds are
-        // cleared via UIAppearance in init() above so the gradient shows through.
-        .background(
-            LinearGradient(
-                colors: theme.current.gradientColors,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-        )
     }
 }
 

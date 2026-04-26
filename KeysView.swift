@@ -23,6 +23,7 @@ struct KeysView: View {
                     keyList
                 }
             }
+            .background(ThemeBackground().ignoresSafeArea())
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -52,6 +52,7 @@ struct NotepadView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { dismissKeyboard() }
             }
+            .background(ThemeBackground().ignoresSafeArea())
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)

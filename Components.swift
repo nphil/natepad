@@ -186,6 +186,7 @@ struct SettingsView: View {
                 }
             }
             .scrollContentBackground(.hidden)
+            .background(ThemeBackground().ignoresSafeArea())
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
