@@ -152,15 +152,15 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(“Security”) {
+                Section("Security") {
                     Toggle(isOn: $biometric.requireUnlock) {
-                        Label(“Require Face ID / Touch ID”, systemImage: “faceid”)
+                        Label("Require Face ID / Touch ID", systemImage: "faceid")
                     }
-                    Text(“When on, NatePad locks whenever you leave the app and requires biometric authentication to re-open.”)
+                    Text("When on, NatePad locks whenever you leave the app and requires biometric authentication to re-open.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
-                Section(“Theme”) {
+                Section("Theme") {
                     HStack(spacing: 0) {
                         ForEach(AppTheme.allCases) { t in
                             ThemeSwatch(
@@ -174,19 +174,19 @@ struct SettingsView: View {
                     .padding(.vertical, 8)
                 }
 
-                Section(“About”) {
-                    LabeledContent(“Stored keys”, value: “\(store.keys.count)”)
-                    LabeledContent(“Engine”, value: “ObjectivePGP”)
-                    Link(“Source on GitHub”, destination: URL(string: “https://github.com/nphil/natepad-ios”)!)
+                Section("About") {
+                    LabeledContent("Stored keys", value: "\(store.keys.count)")
+                    LabeledContent("Engine", value: "ObjectivePGP")
+                    Link("Source on GitHub", destination: URL(string: "https://github.com/nphil/natepad-ios")!)
                 }
 
                 Section {
-                    Text(“Private keys are passphrase-encrypted by OpenPGP and stored in the iOS Keychain (WhenUnlockedThisDeviceOnly). Always export a backup before relying on this app.”)
+                    Text("Private keys are passphrase-encrypted by OpenPGP and stored in the iOS Keychain (WhenUnlockedThisDeviceOnly). Always export a backup before relying on this app.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
             .scrollContentBackground(.hidden)
-            .navigationTitle(“Settings”)
+            .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .principal) { BrandMark() }
             }
