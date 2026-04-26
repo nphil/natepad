@@ -165,10 +165,11 @@ enum PGPService {
                 passphraseForKey: { optKey in
                     guard let key = optKey else { return nil }
                     let id = key.keyID.longIdentifier.uppercased()
-                    if let rec = keyIDToRecord[id] {
-                        return passphraseProvider(rec)
-                    }
-                    return nil
+                    // Direct match on primary key ID
+                    if let rec = keyIDToRecord[id] { return passphraseProvider(rec) }
+                    // Subkey fallback: ObjectivePGP may pass a subkey whose ID differs from the
+                    // primary key we stored. Try every private record's passphrase.
+                    return privateKeys.compactMap { passphraseProvider($0) }.first
                 }
             )
             let plaintext = String(data: decrypted, encoding: .utf8) ?? ""

@@ -54,6 +54,7 @@ struct NotepadView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) { BrandMark() }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -316,25 +317,24 @@ struct NotepadView: View {
     private func runDecrypt() async throws {
         let input = modeState[mode]?.input ?? ""
         guard !input.isEmpty else { throw PGPService.PGPError.parseFailed("Nothing to decrypt") }
+        guard !store.privateKeys.isEmpty else {
+            throw PGPService.PGPError.parseFailed("No private keys — import or generate a key pair first.")
+        }
 
-        // We don't know which key is needed yet, so collect passphrases lazily via the provider closure.
-        // The provider runs on the main actor and can present the sheet.
-        let collected: [String: String] = [:]
+        // ObjectivePGP's passphraseForKey closure is called synchronously during decryption,
+        // so we must collect all passphrases via async prompts BEFORE calling decrypt.
+        var passphrases: [String: String] = [:]
+        for rec in store.privateKeys {
+            guard let pp = await askPassphrase(for: rec) else { return } // user cancelled
+            passphrases[rec.id] = pp
+        }
+
         let plaintext = try PGPService.decrypt(
             armoredMessage: input,
             using: store.privateKeys,
             verificationKeys: store.publicKeys,
-            passphraseProvider: { rec in
-                if let cached = collected[rec.id] { return cached }
-                // Synchronous bridge: we can't easily await here, so prompt eagerly for all private keys instead.
-                return nil
-            }
+            passphraseProvider: { rec in passphrases[rec.id] }
         )
-
-        // If decryption failed because we returned nil for passphrases, retry with eagerly-collected ones.
-        // For ObjectivePGP, the provider runs synchronously, so we need to ask up front. Simplification:
-        // ask for the passphrase of each private key once if there are <= 3. Otherwise show a picker.
-        // For now: trust that decrypt returned. Fallback below.
         setOutput(plaintext.0)
         statusBanner = Banner(kind: .success, title: "Decrypted.", detail: nil)
     }

@@ -186,7 +186,8 @@ struct SettingsView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .navigationTitle("Settings")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) { BrandMark() }
             }

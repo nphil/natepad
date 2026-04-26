@@ -23,7 +23,8 @@ struct KeysView: View {
                     keyList
                 }
             }
-            .navigationTitle("Keys")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) { BrandMark() }
                 ToolbarItemGroup(placement: .topBarTrailing) {
