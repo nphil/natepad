@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 // MARK: - Generate
@@ -80,6 +81,35 @@ struct GenerateKeySheet: View {
     }
 }
 
+// MARK: - Document picker (UIKit bridge)
+// SwiftUI's .fileImporter silently drops its callback when presented inside a sheet.
+// Using UIDocumentPickerViewController directly is reliable in all presentation contexts.
+
+private struct DocumentPicker: UIViewControllerRepresentable {
+    let onPickedURLs: ([URL]) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onPickedURLs: onPickedURLs) }
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data, .plainText])
+        picker.allowsMultipleSelection = true
+        picker.shouldShowFileExtensions = true
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ vc: UIDocumentPickerViewController, context: Context) {}
+
+    class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let onPickedURLs: ([URL]) -> Void
+        init(onPickedURLs: @escaping ([URL]) -> Void) { self.onPickedURLs = onPickedURLs }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            onPickedURLs(urls)
+        }
+    }
+}
+
 // MARK: - Import
 
 struct ImportKeySheet: View {
@@ -100,7 +130,7 @@ struct ImportKeySheet: View {
                     } label: {
                         Label("Choose file(s)…", systemImage: "doc.badge.plus")
                     }
-                    Text("Accepts .asc, .txt, .key, .gpg, .pgp")
+                    Text("Accepts any text file — .asc, .txt, .key, .gpg, .pgp")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Section("Or paste an armored block") {
@@ -127,34 +157,42 @@ struct ImportKeySheet: View {
                     .disabled(isWorking || pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .fileImporter(
-                isPresented: $showFilePicker,
-                allowedContentTypes: [.plainText, .data, UTType(filenameExtension: "asc") ?? .data],
-                allowsMultipleSelection: true
-            ) { result in
-                handleFiles(result)
+            .sheet(isPresented: $showFilePicker) {
+                DocumentPicker { urls in
+                    readFiles(urls)
+                }
+                .ignoresSafeArea()
             }
             .presentationDetents([.large])
             .presentationBackground(.regularMaterial)
         }
     }
 
-    private func handleFiles(_ result: Result<[URL], Error>) {
-        switch result {
-        case .failure(let err):
-            resultMessage = "Failed to open files: \(err.localizedDescription)"
-        case .success(let urls):
-            var combined = pastedText
-            for url in urls {
-                guard url.startAccessingSecurityScopedResource() else { continue }
-                defer { url.stopAccessingSecurityScopedResource() }
-                if let data = try? Data(contentsOf: url),
-                   let text = String(data: data, encoding: .utf8) {
+    private func readFiles(_ urls: [URL]) {
+        var combined = pastedText
+        var readErrors: [String] = []
+        for url in urls {
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let data = try Data(contentsOf: url)
+                let text = String(data: data, encoding: .utf8)
+                    ?? String(data: data, encoding: .isoLatin1)
+                    ?? ""
+                if !text.isEmpty {
                     if !combined.isEmpty { combined += "\n\n" }
                     combined += text
                 }
+            } catch {
+                readErrors.append(url.lastPathComponent + ": " + error.localizedDescription)
             }
-            pastedText = combined
+        }
+        pastedText = combined
+        if !readErrors.isEmpty {
+            resultMessage = "Could not read: " + readErrors.joined(separator: ", ")
+        }
+        if !combined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Task { await runImport() }
         }
     }
 
@@ -165,7 +203,6 @@ struct ImportKeySheet: View {
             let parsed = try PGPService.parseKeys(from: pastedText)
             for rec in parsed { store.add(rec) }
             resultMessage = "Imported \(parsed.count) key\(parsed.count == 1 ? "" : "s")."
-            // Brief pause so user sees the message, then dismiss.
             try? await Task.sleep(nanoseconds: 400_000_000)
             dismiss()
         } catch {
