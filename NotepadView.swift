@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct NotepadView: View {
     @EnvironmentObject var store: KeyStore
@@ -47,10 +48,12 @@ struct NotepadView: View {
                     outputCard
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 80) // breathing room above floating tab bar
+                .padding(.bottom, 80)
+                .contentShape(Rectangle())
+                .onTapGesture { dismissKeyboard() }
             }
-            .background(Color(.systemBackground))
-            .navigationTitle("Notepad")
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle("")
             .toolbar {
                 ToolbarItem(placement: .principal) { BrandMark() }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -138,6 +141,12 @@ struct NotepadView: View {
                     .padding(8)
                     .background(.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
                     .font(.system(.callout, design: .monospaced))
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Done") { dismissKeyboard() }
+                        }
+                    }
 
                 HStack {
                     Button {
@@ -254,6 +263,11 @@ struct NotepadView: View {
         var st = modeState[mode] ?? ModeState()
         st.output = s
         modeState[mode] = st
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                        to: nil, from: nil, for: nil)
     }
 
     // MARK: - Run

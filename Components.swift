@@ -142,42 +142,54 @@ struct GlassCard<Content: View>: View {
     }
 }
 
-// MARK: - Plain Settings view
+// MARK: - Settings view
 
 struct SettingsView: View {
     @EnvironmentObject var biometric: BiometricGate
     @EnvironmentObject var store: KeyStore
+    @EnvironmentObject var theme: ThemeManager
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Security") {
+                Section(“Security”) {
                     Toggle(isOn: $biometric.requireUnlock) {
-                        Label("Require Face ID / Touch ID", systemImage: "faceid")
+                        Label(“Require Face ID / Touch ID”, systemImage: “faceid”)
                     }
-                    Text("When on, Natepad requires biometric authentication every time you open the app.")
+                    Text(“When on, NatePad locks whenever you leave the app and requires biometric authentication to re-open.”)
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                Section("About") {
-                    LabeledContent("Stored keys", value: "\(store.keys.count)")
-                    LabeledContent("Engine", value: "ObjectivePGP")
-                    Link("Source on GitHub", destination: URL(string: "https://github.com")!)
-                }
-                Section("Diagnostics") {
-                    NavigationLink {
-                        LogsView()
-                    } label: {
-                        Label("View logs", systemImage: "doc.text.magnifyingglass")
+
+                Section(“Theme”) {
+                    HStack(spacing: 0) {
+                        ForEach(AppTheme.allCases) { t in
+                            ThemeSwatch(
+                                theme: t,
+                                isSelected: theme.current == t,
+                                onTap: { theme.set(t) }
+                            )
+                            .frame(maxWidth: .infinity)
+                        }
                     }
-                    Text("Captures detailed logs of in-app operations. Tap “Copy all” to share for debugging.")
-                        .font(.caption).foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
                 }
+
+                Section(“About”) {
+                    LabeledContent(“Stored keys”, value: “\(store.keys.count)”)
+                    LabeledContent(“Engine”, value: “ObjectivePGP”)
+                    Link(“Source on GitHub”, destination: URL(string: “https://github.com/nphil/natepad-ios”)!)
+                }
+
                 Section {
-                    Text("Private keys are passphrase-encrypted by OpenPGP and stored in the iOS Keychain (WhenUnlockedThisDeviceOnly). Always export a backup before relying on this app.")
+                    Text(“Private keys are passphrase-encrypted by OpenPGP and stored in the iOS Keychain (WhenUnlockedThisDeviceOnly). Always export a backup before relying on this app.”)
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("Settings")
+            .scrollContentBackground(.hidden)
+            .navigationTitle(“Settings”)
+            .toolbar {
+                ToolbarItem(placement: .principal) { BrandMark() }
+            }
         }
     }
 }

@@ -33,7 +33,7 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleDisplayName: Natepad
+        CFBundleDisplayName: NatePad
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
         UILaunchScreen: {}

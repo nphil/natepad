@@ -4,23 +4,37 @@ import SwiftUI
 struct NatepadApp: App {
     @StateObject private var store = KeyStore()
     @StateObject private var biometric = BiometricGate()
-
-    init() {
-        appLog("=== Natepad launched ===")
-    }
+    @StateObject private var theme = ThemeManager()
 
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environmentObject(store)
-                .environmentObject(biometric)
-                .tint(.indigo)               // accent color across the app
-                .preferredColorScheme(.dark) // matches the web version's vibe
+            ZStack {
+                LinearGradient(
+                    colors: theme.current.gradientColors,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+
+                RootView()
+            }
+            .environmentObject(store)
+            .environmentObject(biometric)
+            .environmentObject(theme)
+            .tint(theme.current.accentColor)
+            .preferredColorScheme(.dark)
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+                biometric.lockIfRequired()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                if biometric.requireUnlock {
+                    Task { await biometric.unlock() }
+                }
+            }
         }
     }
 }
 
-/// Root view — biometric lock screen, then the tabbed app.
 struct RootView: View {
     @EnvironmentObject var biometric: BiometricGate
 
@@ -36,58 +50,50 @@ struct RootView: View {
     }
 }
 
-/// Tab bar root. iOS 26 renders this as a floating Liquid Glass capsule automatically.
 struct ContentView: View {
     var body: some View {
         TabView {
             NotepadView()
-                .tabItem {
-                    Label("Notepad", systemImage: "note.text")
-                }
-
+                .tabItem { Image(systemName: "note.text") }
             KeysView()
-                .tabItem {
-                    Label("Keys", systemImage: "key.fill")
-                }
-
+                .tabItem { Image(systemName: "key.fill") }
             SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape.fill")
-                }
+                .tabItem { Image(systemName: "gearshape.fill") }
         }
     }
 }
 
-/// Brand mark used in nav titles. Tiny inline SVG-equivalent — drawn with SF Symbols + a gradient.
 struct BrandMark: View {
+    @EnvironmentObject var theme: ThemeManager
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [Color(red: 0.78, green: 0.84, blue: 1.0),
-                                 Color(red: 0.36, green: 0.49, blue: 0.94)],
-                        startPoint: .top, endPoint: .bottom
+                        colors: [theme.current.accentColor.opacity(0.9), theme.current.accentColor],
+                        startPoint: .top,
+                        endPoint: .bottom
                     )
                 )
-            Text("Natepad")
-                .font(.system(size: 18, weight: .semibold, design: .default))
+            Text("NatePad")
+                .font(.system(size: 18, weight: .semibold))
         }
     }
 }
 
-/// Shown when biometric gate is on and we haven't unlocked yet.
 struct LockScreen: View {
     @EnvironmentObject var biometric: BiometricGate
+    @EnvironmentObject var theme: ThemeManager
 
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(.indigo.gradient)
-            Text("Natepad is locked")
+                .foregroundStyle(theme.current.accentColor.gradient)
+            Text("NatePad is locked")
                 .font(.title2.weight(.semibold))
             Text("Authenticate to access your keys")
                 .foregroundStyle(.secondary)
