@@ -1,27 +1,36 @@
 {
   "name": "NatePad",
-  "subtitle": "PGP notepad for iPhone — iOS 26 Liquid Glass",
-  "description": "Encrypt, decrypt, sign, and verify PGP messages. Manage your OpenPGP keys — generate, import, and export. Private keys are stored in the iOS Keychain.\n\nBuilt with iOS 26 Liquid Glass UI. Sideload via Feather or AltStore.",
+  "subtitle": "PGP notepad for iPhone \u2014 iOS 26 Liquid Glass",
+  "description": "Encrypt, decrypt, sign, and verify PGP messages. Manage your OpenPGP keys \u2014 generate, import, and export. Private keys are stored in the iOS Keychain.\n\nBuilt with iOS 26 Liquid Glass UI. Sideload via Feather or AltStore.",
   "iconURL": "https://raw.githubusercontent.com/nphil/natepad-ios/main/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
   "website": "https://github.com/nphil/natepad-ios",
   "tintColor": "#5856D6",
-  "featuredApps": ["com.natepad.app"],
+  "featuredApps": [
+    "com.natepad.app"
+  ],
   "apps": [
     {
       "name": "NatePad",
       "bundleIdentifier": "com.natepad.app",
       "developerName": "nphil",
       "subtitle": "PGP encrypt, decrypt, sign & verify",
-      "localizedDescription": "NatePad is a PGP notepad for iPhone. Encrypt and decrypt messages, sign and verify them, and manage your OpenPGP key pairs — all on-device.\n\nFeatures:\n• Encrypt messages to one or more recipients\n• Decrypt messages (pick which private key to use)\n• Sign messages with your private key\n• Verify signed messages\n• Generate RSA-4096 key pairs\n• Import and export .asc keys\n• 5 themes with atmospheric Liquid Glass UI\n• Face ID / Touch ID lock\n\nPrivate keys are passphrase-encrypted by OpenPGP and stored in the iOS Keychain (WhenUnlockedThisDeviceOnly).",
+      "localizedDescription": "NatePad is a PGP notepad for iPhone. Encrypt and decrypt messages, sign and verify them, and manage your OpenPGP key pairs \u2014 all on-device.\n\nFeatures:\n\u2022 Encrypt messages to one or more recipients\n\u2022 Decrypt messages (pick which private key to use)\n\u2022 Sign messages with your private key\n\u2022 Verify signed messages\n\u2022 Generate RSA-4096 key pairs\n\u2022 Import and export .asc keys\n\u2022 5 themes with atmospheric Liquid Glass UI\n\u2022 Face ID / Touch ID lock\n\nPrivate keys are passphrase-encrypted by OpenPGP and stored in the iOS Keychain (WhenUnlockedThisDeviceOnly).",
       "iconURL": "https://raw.githubusercontent.com/nphil/natepad-ios/main/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
       "tintColor": "#5856D6",
       "category": "utilities",
       "screenshots": [],
       "versions": [
         {
+          "version": "1.1",
+          "date": "2026-04-26T21:53:19Z",
+          "localizedDescription": "## What's new in 1.1\n\n**Decrypt key selector** \u2014 when you have multiple private keys, Decrypt mode now shows a picker so you choose exactly which key to use. No more entering passphrases for keys that don't match. Default is Auto-detect (tries all keys), which still works for single-key setups.\n\n**Richer theme backgrounds** \u2014 three blurred orbs instead of two, with a dark accent-tinted base replacing pure black. Roughly half as much black showing through.\n\n**Accent tinting throughout** \u2014 GlassCards, text areas, borders, recipient chips, and section titles now pick up the active theme colour instead of plain grey.\n\n**Bug fix** \u2014 multiple private keys no longer cause repeated passphrase prompts during decrypt.\n\n## Install via Feather / AltStore\n1. Download `Natepad.ipa`\n2. Open Feather or AltStore \u2192 **+** \u2192 choose the IPA\n\n> Or add the repo source to Feather for automatic updates:\n> `https://raw.githubusercontent.com/nphil/natepad-ios/main/apps.json`",
+          "downloadURL": "https://github.com/nphil/natepad-ios/releases/download/v1.1/Natepad.ipa",
+          "size": 976101
+        },
+        {
           "version": "1.0",
           "date": "2026-04-26T21:26:39Z",
-          "localizedDescription": "Initial release.\n\n• Encrypt / Decrypt / Sign / Verify\n• Key management (generate RSA-4096, import/export .asc)\n• 5 themes with blurred gradient backgrounds\n• Face ID / Touch ID lock\n• Decrypt key selector for multi-key setups",
+          "localizedDescription": "Initial release.\n\n\u2022 Encrypt / Decrypt / Sign / Verify\n\u2022 Key management (generate RSA-4096, import/export .asc)\n\u2022 5 themes with blurred gradient backgrounds\n\u2022 Face ID / Touch ID lock\n\u2022 Decrypt key selector for multi-key setups",
           "downloadURL": "https://github.com/nphil/natepad-ios/releases/download/v1.0/Natepad.ipa",
           "size": 968918
         }
@@ -34,17 +43,27 @@
           "FaceID": "NatePad uses Face ID to lock access to your keys."
         }
       },
-      "version": "1.0",
-      "versionDate": "2026-04-26T21:26:39Z",
-      "versionDescription": "Initial release.\n\n• Encrypt / Decrypt / Sign / Verify\n• Key management (generate RSA-4096, import/export .asc)\n• 5 themes with blurred gradient backgrounds\n• Face ID / Touch ID lock\n• Decrypt key selector for multi-key setups",
-      "downloadURL": "https://github.com/nphil/natepad-ios/releases/download/v1.0/Natepad.ipa",
-      "size": 968918
+      "version": "1.1",
+      "versionDate": "2026-04-26T21:53:19Z",
+      "versionDescription": "## What's new in 1.1\n\n**Decrypt key selector** \u2014 when you have multiple private keys, Decrypt mode now shows a picker so you choose exactly which key to use. No more entering passphrases for keys that don't match. Default is Auto-detect (tries all keys), which still works for single-key setups.\n\n**Richer theme backgrounds** \u2014 three blurred orbs instead of two, with a dark accent-tinted base replacing pure black. Roughly half as much black showing through.\n\n**Accent tinting throughout** \u2014 GlassCards, text areas, borders, recipient chips, and section titles now pick up the active theme colour instead of plain grey.\n\n**Bug fix** \u2014 multiple private keys no longer cause repeated passphrase prompts during decrypt.\n\n## Install via Feather / AltStore\n1. Download `Natepad.ipa`\n2. Open Feather or AltStore \u2192 **+** \u2192 choose the IPA\n\n> Or add the repo source to Feather for automatic updates:\n> `https://raw.githubusercontent.com/nphil/natepad-ios/main/apps.json`",
+      "downloadURL": "https://github.com/nphil/natepad-ios/releases/download/v1.1/Natepad.ipa",
+      "size": 976101
     }
   ],
   "news": [
     {
       "appID": "com.natepad.app",
-      "title": "NatePad 1.0 — Initial Release",
+      "title": "NatePad 1.1 available",
+      "identifier": "release-1.1",
+      "caption": "New version of NatePad available!",
+      "date": "2026-04-26T21:53:19Z",
+      "tintColor": "#5856D6",
+      "notify": true,
+      "url": "https://github.com/nphil/natepad-ios/releases/tag/v1.1"
+    },
+    {
+      "appID": "com.natepad.app",
+      "title": "NatePad 1.0 \u2014 Initial Release",
       "identifier": "release-1.0",
       "caption": "NatePad is now available on Feather!",
       "date": "2026-04-26T21:26:39Z",
