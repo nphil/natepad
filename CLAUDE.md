@@ -39,7 +39,11 @@ IPA download: GitHub Releases → "latest" pre-release (overwritten on each main
 ## Architecture rules
 - **No custom `.glass` / `.glassProminent` button style definitions** — iOS 26 SDK provides these natively. Adding custom ones causes "ambiguous use of 'glass'" compile error.
 - Per-mode notepad state: `modeState: [NotepadMode: ModeState]` dict — each mode has its own `input` and `output` strings, prevents content bleed.
-- File import: present `UIDocumentPickerViewController(forOpeningContentTypes:asCopy:)` directly from `topMostViewController()` (walks `UIApplication.shared.connectedScenes` to the active window's top presented VC). **`asCopy: true` is mandatory** — with the default `asCopy: false` iOS silently turns "Open" into a cancellation when the file provider (e.g. iCloud Drive with a not-yet-downloaded file) can't grant security-scoped access. With `asCopy: true` iOS copies the file to the sandbox first. Use a self-retaining `PickerDelegate` (sets `strongSelf = self` in init, releases it in delegate methods) — `UIDocumentPickerViewController.delegate` is `weak`. Do NOT use SwiftUI `.fileImporter` (drops callback inside sheets), `.sheet { DocumentPicker }` (delegate dies), or `.background { UIViewControllerRepresentable }` (host VC not in proper hierarchy).
+- File import: present `UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: true)` directly from `topMostViewController()` (walks `UIApplication.shared.connectedScenes` to the active window's top presented VC).
+  - **`[.item]` not `[.data]`** — `.item` is the most permissive UTI; narrower types let iOS silently disable Open for files it can't classify (e.g. `.asc` keys appear selectable but Open does nothing).
+  - **`asCopy: true`** — iOS copies the file to our sandbox; avoids the security-scoped resource dance that can silently fail for iCloud files not yet downloaded.
+  - Self-retaining `PickerDelegate` — `UIDocumentPickerViewController.delegate` is `weak`, so the delegate sets `strongSelf = self` in `init` and releases it in callbacks.
+  - Do NOT use SwiftUI `.fileImporter` (drops callback inside sheets), `.sheet { DocumentPicker }` (delegate dies), or `.background { UIViewControllerRepresentable }` (host VC not in proper hierarchy).
 - Keys stored in iOS Keychain with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
 
 ## Common tasks

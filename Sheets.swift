@@ -214,12 +214,15 @@ struct ImportKeySheet: View {
         if let already = presenter.presentedViewController {
             appLog("presenter ALREADY presenting: \(type(of: already))", level: "WARN")
         }
-        // asCopy: true is critical. With asCopy:false (the default), iOS hands back a
-        // security-scoped URL to the original file. If the file is in iCloud Drive (not
-        // yet downloaded) or the file provider can't grant access, iOS silently converts
-        // "Open" into a cancellation. asCopy:true makes iOS download/copy the file into
-        // our sandbox first, then hand back a plain URL.
-        let allowedTypes: [UTType] = [.data, .text, .plainText]
+        // Two critical settings:
+        //   • allowedTypes=[.item] — the most permissive UTI (includes .data, .text,
+        //     .directory, .symlink, etc.). With anything narrower (.data, .text), iOS
+        //     can silently disable the Open button for files it can't classify, like .asc
+        //     keys, even though they appear tappable in the picker.
+        //   • asCopy:true — iOS materializes the file into our sandbox before handing
+        //     back a URL. Avoids the security-scoped resource dance which can silently
+        //     fail for iCloud Drive files that haven't been downloaded yet.
+        let allowedTypes: [UTType] = [.item]
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: allowedTypes, asCopy: true)
         picker.allowsMultipleSelection = true
         picker.shouldShowFileExtensions = true
