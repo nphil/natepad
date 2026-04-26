@@ -82,6 +82,7 @@ struct StatusBanner: View {
 // MARK: - Recipient chip strip
 
 struct RecipientChips: View {
+    @EnvironmentObject var theme: ThemeManager
     let recipients: [KeyRecord]
     var onRemove: (KeyRecord) -> Void
 
@@ -108,8 +109,11 @@ struct RecipientChips: View {
                             }
                         }
                         .padding(.leading, 10).padding(.trailing, 6).padding(.vertical, 6)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .overlay(Capsule().stroke(.white.opacity(0.08), lineWidth: 1))
+                        .background {
+                            Capsule().fill(.ultraThinMaterial)
+                            Capsule().fill(theme.current.accentColor.opacity(0.15))
+                        }
+                        .overlay(Capsule().stroke(theme.current.accentColor.opacity(0.30), lineWidth: 1))
                     }
                 }
             }
@@ -119,8 +123,9 @@ struct RecipientChips: View {
 
 // MARK: - Glass section card
 
-/// A common card shape used in both tabs. Liquid Glass background.
+/// A common card shape used in both tabs. Liquid Glass background with theme tint.
 struct GlassCard<Content: View>: View {
+    @EnvironmentObject var theme: ThemeManager
     var title: String?
     @ViewBuilder var content: Content
 
@@ -130,14 +135,17 @@ struct GlassCard<Content: View>: View {
                 Text(title.uppercased())
                     .font(.caption.weight(.semibold))
                     .tracking(0.6)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.current.accentColor.opacity(0.75))
             }
             content
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .background {
+            RoundedRectangle(cornerRadius: 18).fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 18).fill(theme.current.accentColor.opacity(0.08))
+        }
         .overlay(
-            RoundedRectangle(cornerRadius: 18).stroke(.white.opacity(0.06), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18).stroke(theme.current.accentColor.opacity(0.25), lineWidth: 1)
         )
     }
 }

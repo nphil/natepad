@@ -88,17 +88,27 @@ struct ThemeBackground: View {
 
     var body: some View {
         ZStack {
-            Color.black
+            // Very dark tinted base — not pure black
+            theme.current.accentColor.opacity(0.06).ignoresSafeArea()
+            Color.black.opacity(0.82).ignoresSafeArea()
+            // Top-left primary orb
             Circle()
-                .fill(theme.current.accentColor.opacity(0.60))
-                .frame(width: 380)
-                .blur(radius: 120)
-                .offset(x: -90, y: -220)
+                .fill(theme.current.accentColor.opacity(0.85))
+                .frame(width: 520)
+                .blur(radius: 140)
+                .offset(x: -80, y: -230)
+            // Bottom-right secondary orb
             Circle()
-                .fill(theme.current.accentColor.opacity(0.40))
-                .frame(width: 340)
-                .blur(radius: 100)
-                .offset(x: 150, y: 320)
+                .fill(theme.current.accentColor.opacity(0.65))
+                .frame(width: 480)
+                .blur(radius: 130)
+                .offset(x: 160, y: 370)
+            // Centre fill to cut through the black gap
+            Circle()
+                .fill(theme.current.accentColor.opacity(0.25))
+                .frame(width: 420)
+                .blur(radius: 130)
+                .offset(x: 20, y: 80)
         }
         .ignoresSafeArea()
     }

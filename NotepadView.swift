@@ -3,12 +3,14 @@ import UIKit
 
 struct NotepadView: View {
     @EnvironmentObject var store: KeyStore
+    @EnvironmentObject var theme: ThemeManager
 
     @State private var mode: NotepadMode = .encrypt
     /// Per-mode state: prevents leaking content between Encrypt/Decrypt/etc.
     @State private var modeState: [NotepadMode: ModeState] = [:]
     @State private var recipientIDs: [String] = []
     @State private var signerID: String? = nil
+    @State private var decryptKeyID: String? = nil
 
     @State private var statusBanner: Banner? = nil
     @State private var passphrasePrompt: PassphrasePromptContext? = nil
@@ -39,6 +41,8 @@ struct NotepadView: View {
                         encryptOptions
                     } else if mode == .sign {
                         signOptions
+                    } else if mode == .decrypt {
+                        decryptOptions
                     }
 
                     inputCard
@@ -134,6 +138,29 @@ struct NotepadView: View {
         }
     }
 
+    private var decryptOptions: some View {
+        GlassCard(title: "Decryption key") {
+            Menu {
+                Button("Auto-detect") { decryptKeyID = nil }
+                Divider()
+                ForEach(store.privateKeys) { rec in
+                    Button(rec.label) { decryptKeyID = rec.id }
+                }
+                if store.privateKeys.isEmpty {
+                    Text("No private keys — generate or import one first")
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "lock.open.fill")
+                    Text(decryptKeyID.flatMap { store.key(id: $0)?.label } ?? "Auto-detect")
+                        .foregroundStyle(decryptKeyID == nil ? .secondary : .primary)
+                    Spacer()
+                    Image(systemName: "chevron.up.chevron.down").font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
     private var inputCard: some View {
         GlassCard(title: inputLabel) {
             VStack(alignment: .trailing, spacing: 10) {
@@ -141,7 +168,10 @@ struct NotepadView: View {
                     .frame(minHeight: 180)
                     .scrollContentBackground(.hidden)
                     .padding(8)
-                    .background(.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
+                    .background {
+                        RoundedRectangle(cornerRadius: 10).fill(.ultraThinMaterial)
+                        RoundedRectangle(cornerRadius: 10).fill(theme.current.accentColor.opacity(0.10))
+                    }
                     .font(.system(.callout, design: .monospaced))
                     .toolbar {
                         ToolbarItemGroup(placement: .keyboard) {
@@ -189,7 +219,10 @@ struct NotepadView: View {
                         .padding(8)
                 }
                 .frame(minHeight: 120, maxHeight: 320)
-                .background(.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
+                .background {
+                    RoundedRectangle(cornerRadius: 10).fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: 10).fill(theme.current.accentColor.opacity(0.10))
+                }
 
                 HStack {
                     Spacer()
@@ -318,21 +351,30 @@ struct NotepadView: View {
     private func runDecrypt() async throws {
         let input = modeState[mode]?.input ?? ""
         guard !input.isEmpty else { throw PGPService.PGPError.parseFailed("Nothing to decrypt") }
-        guard !store.privateKeys.isEmpty else {
-            throw PGPService.PGPError.parseFailed("No private keys — import or generate a key pair first.")
+
+        // Determine which key(s) to try. A specific selection asks for one passphrase;
+        // auto-detect tries all private keys (useful when you only have one).
+        let keysToTry: [KeyRecord]
+        if let id = decryptKeyID, let rec = store.key(id: id) {
+            keysToTry = [rec]
+        } else {
+            guard !store.privateKeys.isEmpty else {
+                throw PGPService.PGPError.parseFailed("No private keys — import or generate a key pair first.")
+            }
+            keysToTry = store.privateKeys
         }
 
-        // ObjectivePGP's passphraseForKey closure is called synchronously during decryption,
-        // so we must collect all passphrases via async prompts BEFORE calling decrypt.
+        // ObjectivePGP's passphraseForKey closure is synchronous, so collect passphrases
+        // via async prompts BEFORE calling decrypt.
         var passphrases: [String: String] = [:]
-        for rec in store.privateKeys {
+        for rec in keysToTry {
             guard let pp = await askPassphrase(for: rec) else { return } // user cancelled
             passphrases[rec.id] = pp
         }
 
         let plaintext = try PGPService.decrypt(
             armoredMessage: input,
-            using: store.privateKeys,
+            using: keysToTry,
             verificationKeys: store.publicKeys,
             passphraseProvider: { rec in passphrases[rec.id] }
         )
