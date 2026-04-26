@@ -214,10 +214,16 @@ struct ImportKeySheet: View {
         if let already = presenter.presentedViewController {
             appLog("presenter ALREADY presenting: \(type(of: already))", level: "WARN")
         }
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data])
+        // asCopy: true is critical. With asCopy:false (the default), iOS hands back a
+        // security-scoped URL to the original file. If the file is in iCloud Drive (not
+        // yet downloaded) or the file provider can't grant access, iOS silently converts
+        // "Open" into a cancellation. asCopy:true makes iOS download/copy the file into
+        // our sandbox first, then hand back a plain URL.
+        let allowedTypes: [UTType] = [.data, .text, .plainText]
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: allowedTypes, asCopy: true)
         picker.allowsMultipleSelection = true
         picker.shouldShowFileExtensions = true
-        appLog("created UIDocumentPickerViewController, types=[.data], multi=true")
+        appLog("created UIDocumentPickerViewController, types=\(allowedTypes.map(\.identifier)), asCopy=true, multi=true")
         _ = PickerDelegate(picker: picker,
                            onPicked: { urls in
                                appLog("onPicked closure invoked")
