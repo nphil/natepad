@@ -82,30 +82,45 @@ struct GenerateKeySheet: View {
 }
 
 // MARK: - Document picker (UIKit bridge)
-// SwiftUI's .fileImporter silently drops its callback when presented inside a sheet.
-// Using UIDocumentPickerViewController directly is reliable in all presentation contexts.
+// Pattern: dummy UIViewController presented as .background, then UIDocumentPickerViewController
+// is presented from it using UIKit's own present(_:animated:). This avoids two problems:
+//   1. SwiftUI .fileImporter drops its callback when the modifier is inside a sheet.
+//   2. UIDocumentPickerViewController.delegate is weak — wrapping it as a SwiftUI sheet
+//      lets the coordinator deallocate before "Open" is tapped, silently killing the callback.
 
-private struct DocumentPicker: UIViewControllerRepresentable {
+private struct DocumentPickerOpener: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
     let onPickedURLs: ([URL]) -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(onPickedURLs: onPickedURLs) }
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
-    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+    func makeUIViewController(context: Context) -> UIViewController {
+        context.coordinator.hostVC
+    }
+
+    func updateUIViewController(_ vc: UIViewController, context: Context) {
+        context.coordinator.parent = self
+        guard isPresented, vc.presentedViewController == nil else { return }
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data, .plainText])
         picker.allowsMultipleSelection = true
         picker.shouldShowFileExtensions = true
         picker.delegate = context.coordinator
-        return picker
+        vc.present(picker, animated: true)
     }
 
-    func updateUIViewController(_ vc: UIDocumentPickerViewController, context: Context) {}
-
     class Coordinator: NSObject, UIDocumentPickerDelegate {
-        let onPickedURLs: ([URL]) -> Void
-        init(onPickedURLs: @escaping ([URL]) -> Void) { self.onPickedURLs = onPickedURLs }
+        var parent: DocumentPickerOpener
+        let hostVC = UIViewController()
+
+        init(parent: DocumentPickerOpener) { self.parent = parent }
 
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-            onPickedURLs(urls)
+            parent.isPresented = false
+            parent.onPickedURLs(urls)
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            parent.isPresented = false
         }
     }
 }
@@ -157,12 +172,9 @@ struct ImportKeySheet: View {
                     .disabled(isWorking || pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .sheet(isPresented: $showFilePicker) {
-                DocumentPicker { urls in
-                    readFiles(urls)
-                }
-                .ignoresSafeArea()
-            }
+            .background(
+                DocumentPickerOpener(isPresented: $showFilePicker, onPickedURLs: readFiles)
+            )
             .presentationDetents([.large])
             .presentationBackground(.regularMaterial)
         }
