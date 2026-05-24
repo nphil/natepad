@@ -29,7 +29,7 @@ struct NatepadApp: App {
                 .environmentObject(biometric)
                 .environmentObject(theme)
                 .tint(theme.current.accentColor)
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(theme.current.preferredColorScheme)
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
                     biometric.lockIfRequired()
                 }
@@ -95,12 +95,7 @@ struct LockScreen: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: theme.current.gradientColors,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            theme.current.backgroundColor.ignoresSafeArea()
 
             VStack(spacing: 24) {
                 Spacer()
@@ -109,8 +104,9 @@ struct LockScreen: View {
                     .foregroundStyle(theme.current.accentColor.gradient)
                 Text("NatePad is locked")
                     .font(.title2.weight(.semibold))
+                    .foregroundStyle(theme.current.foregroundColor)
                 Text("Authenticate to access your keys")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.current.foregroundColor.opacity(0.7))
                 Spacer()
                 Button {
                     Task { await biometric.unlock() }

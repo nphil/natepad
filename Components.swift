@@ -169,14 +169,13 @@ struct SettingsView: View {
                 }
 
                 Section("Theme") {
-                    HStack(spacing: 0) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 14) {
                         ForEach(AppTheme.allCases) { t in
                             ThemeSwatch(
                                 theme: t,
                                 isSelected: theme.current == t,
                                 onTap: { theme.set(t) }
                             )
-                            .frame(maxWidth: .infinity)
                         }
                     }
                     .padding(.vertical, 8)
@@ -194,7 +193,7 @@ struct SettingsView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(ThemeBackground().ignoresSafeArea())
+            .background(theme.current.backgroundColor.ignoresSafeArea())
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

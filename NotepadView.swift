@@ -1,286 +1,195 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
+
+// MARK: - Notepad Navigation Destinations
+
+enum NotepadDestination: Hashable {
+    case encrypt, decrypt, sign, verify
+}
+
+// MARK: - Notepad View Dashboard
 
 struct NotepadView: View {
     @EnvironmentObject var store: KeyStore
     @EnvironmentObject var theme: ThemeManager
-
-    @State private var mode: NotepadMode = .encrypt
-    /// Per-mode state: prevents leaking content between Encrypt/Decrypt/etc.
-    @State private var modeState: [NotepadMode: ModeState] = [:]
-    @State private var recipientIDs: [String] = []
-    @State private var signerID: String? = nil
-    @State private var decryptKeyID: String? = nil
-
-    @State private var statusBanner: Banner? = nil
-    @State private var passphrasePrompt: PassphrasePromptContext? = nil
-    @State private var isWorking = false
-
-    struct ModeState {
-        var input: String = ""
-        var output: String = ""
-    }
-
-    struct Banner: Identifiable {
-        let id = UUID()
-        let kind: StatusBanner.Kind
-        let title: String
-        let detail: String?
-    }
-
+    
+    private let columns = [
+        GridItem(.flexible(), spacing: 14),
+        GridItem(.flexible(), spacing: 14)
+    ]
+    
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 14) {
-                    GlassCard {
-                        ModePicker(selected: $mode)
-                            .onChange(of: mode) { _, _ in statusBanner = nil }
+                VStack(spacing: 20) {
+                    // App Brand Header Card
+                    VStack(spacing: 12) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 52))
+                            .foregroundStyle(theme.current.accentColor.gradient)
+                            
+                        Text("NatePad PGP")
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(theme.current.foregroundColor)
+                            
+                        Text("Securely encrypt, decrypt, sign, and verify messages with bank-grade security on-device.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 16)
                     }
-
-                    if mode == .encrypt {
-                        encryptOptions
-                    } else if mode == .sign {
-                        signOptions
-                    } else if mode == .decrypt {
-                        decryptOptions
+                    .padding(24)
+                    .frame(maxWidth: .infinity)
+                    .background {
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(.ultraThinMaterial)
                     }
-
-                    inputCard
-                    if let banner = statusBanner {
-                        StatusBanner(kind: banner.kind, title: banner.title, detail: banner.detail)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(theme.current.accentColor.opacity(0.18), lineWidth: 1)
+                    )
+                    .padding(.top, 10)
+                    
+                    // Warning Banner if no keys
+                    if store.keys.isEmpty {
+                        StatusBanner(
+                            kind: .warn,
+                            title: "No PGP Keys Found",
+                            detail: "Generate or import a key pair under the Keys tab to enable all PGP features."
+                        )
                     }
-                    outputCard
+                    
+                    // 2x2 Grid of Actions
+                    LazyVGrid(columns: columns, spacing: 14) {
+                        NavigationLink(value: NotepadDestination.encrypt) {
+                            DashboardButton(
+                                title: "Encrypt",
+                                description: "Secure a message for recipients",
+                                systemImage: "lock.fill",
+                                color: theme.current.accentColor
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        
+                        NavigationLink(value: NotepadDestination.decrypt) {
+                            DashboardButton(
+                                title: "Decrypt",
+                                description: "Open an encrypted message",
+                                systemImage: "lock.open.fill",
+                                color: theme.current.secondaryColor
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        
+                        NavigationLink(value: NotepadDestination.sign) {
+                            DashboardButton(
+                                title: "Sign",
+                                description: "Digitally sign a plaintext message",
+                                systemImage: "signature",
+                                color: theme.current.accentColor
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        
+                        NavigationLink(value: NotepadDestination.verify) {
+                            DashboardButton(
+                                title: "Verify",
+                                description: "Verify a message's signature",
+                                systemImage: "checkmark.seal.fill",
+                                color: theme.current.secondaryColor
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 80)
-                .contentShape(Rectangle())
-                .onTapGesture { dismissKeyboard() }
+                .padding(.bottom, 30)
             }
-            .background(ThemeBackground().ignoresSafeArea())
-            .scrollDismissesKeyboard(.interactively)
+            .background(theme.current.backgroundColor.ignoresSafeArea())
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) { BrandMark() }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button(role: .destructive) { clearCurrent() } label: {
-                            Label("Clear this mode", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                }
             }
-            .sheet(item: $passphrasePrompt) { ctx in
-                PassphraseSheet(context: ctx)
-            }
-        }
-    }
-
-    // MARK: - Cards
-
-    private var encryptOptions: some View {
-        GlassCard(title: "Recipients") {
-            VStack(alignment: .leading, spacing: 10) {
-                RecipientChips(recipients: selectedRecipients) { rec in
-                    recipientIDs.removeAll { $0 == rec.id }
-                }
-                Menu {
-                    ForEach(availableRecipients) { rec in
-                        Button(rec.label) { recipientIDs.append(rec.id) }
-                    }
-                    if availableRecipients.isEmpty {
-                        Text("No more public keys to add")
-                    }
-                } label: {
-                    Label("Add recipient", systemImage: "plus.circle.fill")
-                        .font(.callout.weight(.medium))
-                }
-
-                Divider().opacity(0.3)
-
-                Menu {
-                    Button("— Don't sign —") { signerID = nil }
-                    ForEach(store.privateKeys) { rec in
-                        Button(rec.label) { signerID = rec.id }
-                    }
-                } label: {
-                    HStack {
-                        Image(systemName: "signature")
-                        Text(signerLabel)
-                            .foregroundStyle(signerID == nil ? .secondary : .primary)
-                        Spacer()
-                        Image(systemName: "chevron.up.chevron.down").font(.caption2).foregroundStyle(.secondary)
-                    }
+            .navigationDestination(for: NotepadDestination.self) { destination in
+                switch destination {
+                case .encrypt:
+                    EncryptWorkflow()
+                case .decrypt:
+                    DecryptWorkflow()
+                case .sign:
+                    SignWorkflow()
+                case .verify:
+                    VerifyWorkflow()
                 }
             }
         }
     }
+}
 
-    private var signOptions: some View {
-        GlassCard(title: "Signing key") {
-            Menu {
-                ForEach(store.privateKeys) { rec in
-                    Button(rec.label) { signerID = rec.id }
-                }
-                if store.privateKeys.isEmpty {
-                    Text("No private keys — generate or import one first")
-                }
-            } label: {
-                HStack {
-                    Image(systemName: "key.fill")
-                    Text(signerID.flatMap { store.key(id: $0)?.label } ?? "Pick a key")
-                    Spacer()
-                    Image(systemName: "chevron.up.chevron.down").font(.caption2).foregroundStyle(.secondary)
-                }
+// MARK: - Dashboard Button
+
+struct DashboardButton: View {
+    let title: String
+    let description: String
+    let systemImage: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: systemImage)
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(10)
+                    .background(color, in: RoundedRectangle(cornerRadius: 12))
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(.primary)
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
             }
         }
-    }
-
-    private var decryptOptions: some View {
-        GlassCard(title: "Decryption key") {
-            Menu {
-                Button("Auto-detect") { decryptKeyID = nil }
-                Divider()
-                ForEach(store.privateKeys) { rec in
-                    Button(rec.label) { decryptKeyID = rec.id }
-                }
-                if store.privateKeys.isEmpty {
-                    Text("No private keys — generate or import one first")
-                }
-            } label: {
-                HStack {
-                    Image(systemName: "lock.open.fill")
-                    Text(decryptKeyID.flatMap { store.key(id: $0)?.label } ?? "Auto-detect")
-                        .foregroundStyle(decryptKeyID == nil ? .secondary : .primary)
-                    Spacer()
-                    Image(systemName: "chevron.up.chevron.down").font(.caption2).foregroundStyle(.secondary)
-                }
-            }
+        .padding(16)
+        .frame(maxHeight: .infinity)
+        .background {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
         }
-    }
-
-    private var inputCard: some View {
-        GlassCard(title: inputLabel) {
-            VStack(alignment: .trailing, spacing: 10) {
-                TextEditor(text: bindingForInput)
-                    .frame(minHeight: 180)
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
-                    .background {
-                        RoundedRectangle(cornerRadius: 10).fill(.ultraThinMaterial)
-                        RoundedRectangle(cornerRadius: 10).fill(theme.current.accentColor.opacity(0.10))
-                    }
-                    .font(.system(.callout, design: .monospaced))
-                    .toolbar {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            Spacer()
-                            Button("Done") { dismissKeyboard() }
-                        }
-                    }
-
-                HStack {
-                    Button {
-                        if let s = UIPasteboard.general.string {
-                            modeState[mode, default: ModeState()].input = s
-                        }
-                    } label: {
-                        Label("Paste", systemImage: "doc.on.clipboard")
-                    }
-                    .buttonStyle(.glass)
-
-                    Spacer()
-
-                    Button {
-                        Task { await run() }
-                    } label: {
-                        if isWorking {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Label(actionLabel, systemImage: mode.systemImage)
-                        }
-                    }
-                    .buttonStyle(.glassProminent)
-                    .disabled(isWorking)
-                }
-            }
-        }
-    }
-
-    private var outputCard: some View {
-        GlassCard(title: outputLabel) {
-            VStack(alignment: .trailing, spacing: 10) {
-                ScrollView {
-                    Text(modeState[mode]?.output ?? "")
-                        .font(.system(.callout, design: .monospaced))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                        .padding(8)
-                }
-                .frame(minHeight: 120, maxHeight: 320)
-                .background {
-                    RoundedRectangle(cornerRadius: 10).fill(.ultraThinMaterial)
-                    RoundedRectangle(cornerRadius: 10).fill(theme.current.accentColor.opacity(0.10))
-                }
-
-                HStack {
-                    Spacer()
-                    Button {
-                        if let out = modeState[mode]?.output, !out.isEmpty {
-                            UIPasteboard.general.string = out
-                        }
-                    } label: {
-                        Label("Copy", systemImage: "doc.on.doc")
-                    }
-                    .buttonStyle(.glass)
-
-                    if let out = modeState[mode]?.output, !out.isEmpty {
-                        ShareLink(item: out) {
-                            Label("Share", systemImage: "square.and.arrow.up")
-                        }
-                        .buttonStyle(.glass)
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Computed labels & helpers
-
-    private var inputLabel: String {
-        switch mode {
-        case .encrypt, .sign: return "Plaintext"
-        case .decrypt: return "Encrypted message"
-        case .verify: return "Signed message"
-        }
-    }
-    private var outputLabel: String {
-        switch mode {
-        case .encrypt: return "Encrypted message"
-        case .decrypt: return "Plaintext"
-        case .sign: return "Signed message"
-        case .verify: return "Verified plaintext"
-        }
-    }
-    private var actionLabel: String {
-        mode.label
-    }
-    private var signerLabel: String {
-        guard let id = signerID, let rec = store.key(id: id) else { return "— Don't sign —" }
-        return "Sign with \(rec.primaryUser.name.isEmpty ? rec.primaryUser.email : rec.primaryUser.name)"
-    }
-
-    private var bindingForInput: Binding<String> {
-        Binding(
-            get: { modeState[mode]?.input ?? "" },
-            set: { newValue in
-                var s = modeState[mode] ?? ModeState()
-                s.input = newValue
-                modeState[mode] = s
-            }
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(color.opacity(0.18), lineWidth: 1)
         )
     }
+}
+
+// MARK: - Encrypt Workflow
+
+struct EncryptWorkflow: View {
+    @EnvironmentObject var store: KeyStore
+    @EnvironmentObject var theme: ThemeManager
+    @Environment(\.dismiss) var dismiss
+
+    @State private var inputText = ""
+    @State private var recipientIDs: [String] = []
+    @State private var signerID: String? = nil
+    @State private var armoredOutput = ""
+    @State private var isWorking = false
+    @State private var errorMessage: String? = nil
+    @State private var showResultSheet = false
+    
+    @State private var passphrasePrompt: PassphrasePromptContext? = nil
 
     private var selectedRecipients: [KeyRecord] {
         recipientIDs.compactMap { store.key(id: $0) }
@@ -289,121 +198,251 @@ struct NotepadView: View {
         store.publicKeys.filter { rec in !recipientIDs.contains(rec.id) }
     }
 
-    private func clearCurrent() {
-        modeState[mode] = ModeState()
-        statusBanner = nil
+    var body: some View {
+        Form {
+            Section("Recipients") {
+                if recipientIDs.isEmpty {
+                    Text("Select who can decrypt this message.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    ForEach(selectedRecipients) { rec in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(rec.primaryUser.name.isEmpty ? "(unnamed)" : rec.primaryUser.name)
+                                    .font(.callout.weight(.medium))
+                                if !rec.primaryUser.email.isEmpty {
+                                    Text(rec.primaryUser.email)
+                                        .font(.caption2).foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Button(role: .destructive) {
+                                recipientIDs.removeAll { $0 == rec.id }
+                            } label: {
+                                Image(systemName: "minus.circle.fill").foregroundStyle(.red)
+                            }
+                        }
+                    }
+                }
+                
+                if !availableRecipients.isEmpty {
+                    Menu {
+                        ForEach(availableRecipients) { rec in
+                            Button(rec.label) { recipientIDs.append(rec.id) }
+                        }
+                    } label: {
+                        HStack {
+                            Label("Add Recipient", systemImage: "plus.circle.fill")
+                            Spacer()
+                            Image(systemName: "chevron.up.chevron.down").font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                } else if store.publicKeys.isEmpty {
+                    Text("No public keys available. Import some first.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Signing Key (Optional)") {
+                Picker("Sign with", selection: $signerID) {
+                    Text("Don't sign").tag(String?.none)
+                    ForEach(store.privateKeys) { rec in
+                        Text(rec.label).tag(String?.some(rec.id))
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            Section("Plaintext Message") {
+                ZStack(alignment: .topLeading) {
+                    if inputText.isEmpty {
+                        Text("Enter message to encrypt...")
+                            .font(.callout.monospaced())
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 8)
+                            .allowsHitTesting(false)
+                    }
+                    TextEditor(text: $inputText)
+                        .font(.system(.callout, design: .monospaced))
+                        .frame(minHeight: 180)
+                        .scrollContentBackground(.hidden)
+                }
+                HStack {
+                    Button {
+                        if let s = UIPasteboard.general.string {
+                            inputText = s
+                        }
+                    } label: {
+                        Label("Paste", systemImage: "doc.on.clipboard")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Button {
+                        importFile(into: $inputText)
+                    } label: {
+                        Label("Import File", systemImage: "doc.badge.plus")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Spacer()
+                    
+                    Text("\(inputText.count) chars • \(wordCount(inputText)) words")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
+            if let errorMessage {
+                Section {
+                    Text(errorMessage)
+                        .foregroundStyle(.red)
+                        .font(.callout)
+                }
+            }
+
+            Section {
+                Button {
+                    Task { await runEncrypt() }
+                } label: {
+                    HStack {
+                        Spacer()
+                        if isWorking {
+                            ProgressView().controlSize(.regular)
+                        } else {
+                            Label(signerID == nil ? "Encrypt Message" : "Encrypt & Sign Message", systemImage: "lock.fill")
+                                .font(.body.weight(.bold))
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.glassProminent)
+                .disabled(inputText.isEmpty || recipientIDs.isEmpty || isWorking)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(theme.current.backgroundColor.ignoresSafeArea())
+        .navigationTitle("Encrypt")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showResultSheet) {
+            NavigationStack {
+                VStack(spacing: 20) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.green.gradient)
+                        .padding(.top, 24)
+                        
+                    Text("Encryption Complete")
+                        .font(.title2.weight(.bold))
+                        
+                    Text("The message has been securely encrypted with the selected PGP public keys.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                        
+                    VStack(alignment: .trailing, spacing: 8) {
+                        ScrollView {
+                            Text(armoredOutput)
+                                .font(.system(.caption, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                                .padding(12)
+                        }
+                        .frame(maxHeight: 280)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(theme.current.accentColor.opacity(0.2), lineWidth: 1)
+                        )
+                        
+                        HStack {
+                            Button {
+                                UIPasteboard.general.string = armoredOutput
+                            } label: {
+                                Label("Copy PGP Block", systemImage: "doc.on.doc")
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            ShareLink(item: armoredOutput) {
+                                Label("Share", systemImage: "square.and.arrow.up")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    
+                    Spacer()
+                    
+                    Button("Done") {
+                        showResultSheet = false
+                        dismiss()
+                    }
+                    .buttonStyle(.glassProminent)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
+                }
+                .background(theme.current.backgroundColor.ignoresSafeArea())
+                .navigationTitle("Encrypted Result")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        }
+        .sheet(item: $passphrasePrompt) { ctx in
+            PassphraseSheet(context: ctx)
+        }
     }
 
-    private func setOutput(_ s: String) {
-        var st = modeState[mode] ?? ModeState()
-        st.output = s
-        modeState[mode] = st
+    private func wordCount(_ text: String) -> Int {
+        text.split { $0.isWhitespace || $0.isNewline }.count
     }
 
-    private func dismissKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                        to: nil, from: nil, for: nil)
+    private func importFile(into binding: Binding<String>) {
+        guard let presenter = topMostViewController() else { return }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: true)
+        picker.allowsMultipleSelection = false
+        _ = PickerDelegate(picker: picker, onPicked: { urls in
+            guard let url = urls.first else { return }
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            if let data = try? Data(contentsOf: url),
+               let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) {
+                binding.wrappedValue = text
+            }
+        })
+        presenter.present(picker, animated: true)
     }
 
-    // MARK: - Run
-
-    private func run() async {
-        statusBanner = nil
+    private func runEncrypt() async {
+        errorMessage = nil
         isWorking = true
         defer { isWorking = false }
 
         do {
-            switch mode {
-            case .encrypt: try await runEncrypt()
-            case .decrypt: try await runDecrypt()
-            case .sign:    try await runSign()
-            case .verify:  try await runVerify()
+            let input = inputText
+            guard !input.isEmpty else { throw PGPService.PGPError.parseFailed("Nothing to encrypt") }
+            guard !recipientIDs.isEmpty else { throw PGPService.PGPError.parseFailed("Select at least one recipient") }
+
+            var passphrase: String? = nil
+            var signer: KeyRecord? = nil
+            if let id = signerID, let rec = store.key(id: id) {
+                signer = rec
+                passphrase = await askPassphrase(for: rec)
+                if passphrase == nil { return } // cancelled
             }
+
+            let armored = try PGPService.encrypt(plaintext: input,
+                                                 to: selectedRecipients,
+                                                 signWith: signer,
+                                                 passphrase: passphrase)
+            armoredOutput = armored
+            showResultSheet = true
         } catch {
-            setOutput("")
-            statusBanner = Banner(kind: .error, title: "Failed", detail: error.localizedDescription)
+            errorMessage = error.localizedDescription
         }
     }
-
-    private func runEncrypt() async throws {
-        let input = modeState[mode]?.input ?? ""
-        guard !input.isEmpty else { throw PGPService.PGPError.parseFailed("Nothing to encrypt") }
-        guard !recipientIDs.isEmpty else { throw PGPService.PGPError.parseFailed("Select at least one recipient") }
-
-        var passphrase: String? = nil
-        var signer: KeyRecord? = nil
-        if let id = signerID, let rec = store.key(id: id) {
-            signer = rec
-            passphrase = await askPassphrase(for: rec)
-            if passphrase == nil { return } // cancelled
-        }
-
-        let armored = try PGPService.encrypt(plaintext: input,
-                                             to: selectedRecipients,
-                                             signWith: signer,
-                                             passphrase: passphrase)
-        setOutput(armored)
-        statusBanner = Banner(kind: .success,
-                              title: signer != nil ? "Encrypted and signed." : "Encrypted.",
-                              detail: nil)
-    }
-
-    private func runDecrypt() async throws {
-        let input = modeState[mode]?.input ?? ""
-        guard !input.isEmpty else { throw PGPService.PGPError.parseFailed("Nothing to decrypt") }
-
-        // Determine which key(s) to try. A specific selection asks for one passphrase;
-        // auto-detect tries all private keys (useful when you only have one).
-        let keysToTry: [KeyRecord]
-        if let id = decryptKeyID, let rec = store.key(id: id) {
-            keysToTry = [rec]
-        } else {
-            guard !store.privateKeys.isEmpty else {
-                throw PGPService.PGPError.parseFailed("No private keys — import or generate a key pair first.")
-            }
-            keysToTry = store.privateKeys
-        }
-
-        // ObjectivePGP's passphraseForKey closure is synchronous, so collect passphrases
-        // via async prompts BEFORE calling decrypt.
-        var passphrases: [String: String] = [:]
-        for rec in keysToTry {
-            guard let pp = await askPassphrase(for: rec) else { return } // user cancelled
-            passphrases[rec.id] = pp
-        }
-
-        let plaintext = try PGPService.decrypt(
-            armoredMessage: input,
-            using: keysToTry,
-            verificationKeys: store.publicKeys,
-            passphraseProvider: { rec in passphrases[rec.id] }
-        )
-        setOutput(plaintext.0)
-        statusBanner = Banner(kind: .success, title: "Decrypted.", detail: nil)
-    }
-
-    private func runSign() async throws {
-        let input = modeState[mode]?.input ?? ""
-        guard !input.isEmpty else { throw PGPService.PGPError.parseFailed("Nothing to sign") }
-        guard let id = signerID, let rec = store.key(id: id) else {
-            throw PGPService.PGPError.parseFailed("Pick a signing key")
-        }
-        guard let passphrase = await askPassphrase(for: rec) else { return }
-
-        let armored = try PGPService.sign(plaintext: input, with: rec, passphrase: passphrase)
-        setOutput(armored)
-        statusBanner = Banner(kind: .success, title: "Signed.", detail: nil)
-    }
-
-    private func runVerify() async throws {
-        let input = modeState[mode]?.input ?? ""
-        guard !input.isEmpty else { throw PGPService.PGPError.parseFailed("Nothing to verify") }
-        let plaintext = try PGPService.verify(armoredMessage: input, using: store.publicKeys)
-        setOutput(plaintext)
-        statusBanner = Banner(kind: .success, title: "Signature is VALID.", detail: nil)
-    }
-
-    // MARK: - Passphrase prompt
 
     @MainActor
     private func askPassphrase(for rec: KeyRecord) async -> String? {
@@ -415,6 +454,636 @@ struct NotepadView: View {
         }
     }
 }
+
+// MARK: - Decrypt Workflow
+
+struct DecryptWorkflow: View {
+    @EnvironmentObject var store: KeyStore
+    @EnvironmentObject var theme: ThemeManager
+    @Environment(\.dismiss) var dismiss
+
+    @State private var inputText = ""
+    @State private var decryptKeyID: String? = nil
+    @State private var decryptedText = ""
+    @State private var isWorking = false
+    @State private var errorMessage: String? = nil
+    @State private var showResultSheet = false
+    
+    @State private var passphrasePrompt: PassphrasePromptContext? = nil
+
+    var body: some View {
+        Form {
+            Section("Decryption Key") {
+                Picker("Decrypt with", selection: $decryptKeyID) {
+                    Text("Auto-detect (Try all keys)").tag(String?.none)
+                    ForEach(store.privateKeys) { rec in
+                        Text(rec.label).tag(String?.some(rec.id))
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            Section("Encrypted Message (PGP Message)") {
+                ZStack(alignment: .topLeading) {
+                    if inputText.isEmpty {
+                        Text("Paste PGP message starting with -----BEGIN PGP MESSAGE-----")
+                            .font(.callout.monospaced())
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 8)
+                            .allowsHitTesting(false)
+                    }
+                    TextEditor(text: $inputText)
+                        .font(.system(.callout, design: .monospaced))
+                        .frame(minHeight: 180)
+                        .scrollContentBackground(.hidden)
+                }
+                HStack {
+                    Button {
+                        if let s = UIPasteboard.general.string {
+                            inputText = s
+                        }
+                    } label: {
+                        Label("Paste", systemImage: "doc.on.clipboard")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Button {
+                        importFile(into: $inputText)
+                    } label: {
+                        Label("Import File", systemImage: "doc.badge.plus")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Spacer()
+                    
+                    Text("\(inputText.count) chars")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
+            if let errorMessage {
+                Section {
+                    Text(errorMessage)
+                        .foregroundStyle(.red)
+                        .font(.callout)
+                }
+            }
+
+            Section {
+                Button {
+                    Task { await runDecrypt() }
+                } label: {
+                    HStack {
+                        Spacer()
+                        if isWorking {
+                            ProgressView().controlSize(.regular)
+                        } else {
+                            Label("Decrypt Message", systemImage: "lock.open.fill")
+                                .font(.body.weight(.bold))
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.glassProminent)
+                .disabled(inputText.isEmpty || isWorking)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(theme.current.backgroundColor.ignoresSafeArea())
+        .navigationTitle("Decrypt")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showResultSheet) {
+            NavigationStack {
+                VStack(spacing: 20) {
+                    Image(systemName: "lock.open.fill")
+                        .font(.system(size: 60))
+                        .foregroundStyle(theme.current.accentColor.gradient)
+                        .padding(.top, 24)
+                        
+                    Text("Decryption Successful")
+                        .font(.title2.weight(.bold))
+                        
+                    VStack(alignment: .trailing, spacing: 8) {
+                        ScrollView {
+                            Text(decryptedText)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                                .padding(12)
+                        }
+                        .frame(maxHeight: 280)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(theme.current.accentColor.opacity(0.2), lineWidth: 1)
+                        )
+                        
+                        HStack {
+                            Button {
+                                UIPasteboard.general.string = decryptedText
+                            } label: {
+                                Label("Copy Plaintext", systemImage: "doc.on.doc")
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            ShareLink(item: decryptedText) {
+                                Label("Share", systemImage: "square.and.arrow.up")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    
+                    Spacer()
+                    
+                    Button("Done") {
+                        showResultSheet = false
+                        dismiss()
+                    }
+                    .buttonStyle(.glassProminent)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
+                }
+                .background(theme.current.backgroundColor.ignoresSafeArea())
+                .navigationTitle("Decrypted Message")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        }
+        .sheet(item: $passphrasePrompt) { ctx in
+            PassphraseSheet(context: ctx)
+        }
+    }
+
+    private func importFile(into binding: Binding<String>) {
+        guard let presenter = topMostViewController() else { return }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: true)
+        picker.allowsMultipleSelection = false
+        _ = PickerDelegate(picker: picker, onPicked: { urls in
+            guard let url = urls.first else { return }
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            if let data = try? Data(contentsOf: url),
+               let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) {
+                binding.wrappedValue = text
+            }
+        })
+        presenter.present(picker, animated: true)
+    }
+
+    private func runDecrypt() async {
+        errorMessage = nil
+        isWorking = true
+        defer { isWorking = false }
+
+        do {
+            let input = inputText
+            guard !input.isEmpty else { throw PGPService.PGPError.parseFailed("Nothing to decrypt") }
+
+            let keysToTry: [KeyRecord]
+            if let id = decryptKeyID, let rec = store.key(id: id) {
+                keysToTry = [rec]
+            } else {
+                guard !store.privateKeys.isEmpty else {
+                    throw PGPService.PGPError.parseFailed("No private keys — import or generate a key pair first.")
+                }
+                keysToTry = store.privateKeys
+            }
+
+            var passphrases: [String: String] = [:]
+            for rec in keysToTry {
+                guard let pp = await askPassphrase(for: rec) else { return } // user cancelled
+                passphrases[rec.id] = pp
+            }
+
+            let plaintext = try PGPService.decrypt(
+                armoredMessage: input,
+                using: keysToTry,
+                verificationKeys: store.publicKeys,
+                passphraseProvider: { rec in passphrases[rec.id] }
+            )
+            decryptedText = plaintext.0
+            showResultSheet = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func askPassphrase(for rec: KeyRecord) async -> String? {
+        await withCheckedContinuation { cont in
+            passphrasePrompt = PassphrasePromptContext(record: rec) { result in
+                passphrasePrompt = nil
+                cont.resume(returning: result)
+            }
+        }
+    }
+}
+
+// MARK: - Sign Workflow
+
+struct SignWorkflow: View {
+    @EnvironmentObject var store: KeyStore
+    @EnvironmentObject var theme: ThemeManager
+    @Environment(\.dismiss) var dismiss
+
+    @State private var inputText = ""
+    @State private var signerID: String? = nil
+    @State private var armoredOutput = ""
+    @State private var isWorking = false
+    @State private var errorMessage: String? = nil
+    @State private var showResultSheet = false
+    
+    @State private var passphrasePrompt: PassphrasePromptContext? = nil
+
+    var body: some View {
+        Form {
+            Section("Signing Key") {
+                Picker("Sign with", selection: $signerID) {
+                    Text("Select a key").tag(String?.none)
+                    ForEach(store.privateKeys) { rec in
+                        Text(rec.label).tag(String?.some(rec.id))
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            Section("Message Plaintext") {
+                ZStack(alignment: .topLeading) {
+                    if inputText.isEmpty {
+                        Text("Enter the message text to sign...")
+                            .font(.callout.monospaced())
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 8)
+                            .allowsHitTesting(false)
+                    }
+                    TextEditor(text: $inputText)
+                        .font(.system(.callout, design: .monospaced))
+                        .frame(minHeight: 180)
+                        .scrollContentBackground(.hidden)
+                }
+                HStack {
+                    Button {
+                        if let s = UIPasteboard.general.string {
+                            inputText = s
+                        }
+                    } label: {
+                        Label("Paste", systemImage: "doc.on.clipboard")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Button {
+                        importFile(into: $inputText)
+                    } label: {
+                        Label("Import File", systemImage: "doc.badge.plus")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Spacer()
+                    
+                    Text("\(inputText.count) chars")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
+            if let errorMessage {
+                Section {
+                    Text(errorMessage)
+                        .foregroundStyle(.red)
+                        .font(.callout)
+                }
+            }
+
+            Section {
+                Button {
+                    Task { await runSign() }
+                } label: {
+                    HStack {
+                        Spacer()
+                        if isWorking {
+                            ProgressView().controlSize(.regular)
+                        } else {
+                            Label("Sign Message", systemImage: "signature")
+                                .font(.body.weight(.bold))
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.glassProminent)
+                .disabled(inputText.isEmpty || signerID == nil || isWorking)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(theme.current.backgroundColor.ignoresSafeArea())
+        .navigationTitle("Sign")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showResultSheet) {
+            NavigationStack {
+                VStack(spacing: 20) {
+                    Image(systemName: "signature")
+                        .font(.system(size: 60))
+                        .foregroundStyle(theme.current.accentColor.gradient)
+                        .padding(.top, 24)
+                        
+                    Text("Signature Generated")
+                        .font(.title2.weight(.bold))
+                        
+                    VStack(alignment: .trailing, spacing: 8) {
+                        ScrollView {
+                            Text(armoredOutput)
+                                .font(.system(.caption, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                                .padding(12)
+                        }
+                        .frame(maxHeight: 280)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(theme.current.accentColor.opacity(0.2), lineWidth: 1)
+                        )
+                        
+                        HStack {
+                            Button {
+                                UIPasteboard.general.string = armoredOutput
+                            } label: {
+                                Label("Copy Signed PGP Block", systemImage: "doc.on.doc")
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            ShareLink(item: armoredOutput) {
+                                Label("Share", systemImage: "square.and.arrow.up")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    
+                    Spacer()
+                    
+                    Button("Done") {
+                        showResultSheet = false
+                        dismiss()
+                    }
+                    .buttonStyle(.glassProminent)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
+                }
+                .background(theme.current.backgroundColor.ignoresSafeArea())
+                .navigationTitle("Signed Message")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        }
+        .sheet(item: $passphrasePrompt) { ctx in
+            PassphraseSheet(context: ctx)
+        }
+    }
+
+    private func importFile(into binding: Binding<String>) {
+        guard let presenter = topMostViewController() else { return }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: true)
+        picker.allowsMultipleSelection = false
+        _ = PickerDelegate(picker: picker, onPicked: { urls in
+            guard let url = urls.first else { return }
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            if let data = try? Data(contentsOf: url),
+               let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) {
+                binding.wrappedValue = text
+            }
+        })
+        presenter.present(picker, animated: true)
+    }
+
+    private func runSign() async {
+        errorMessage = nil
+        isWorking = true
+        defer { isWorking = false }
+
+        do {
+            let input = inputText
+            guard !input.isEmpty else { throw PGPService.PGPError.parseFailed("Nothing to sign") }
+            guard let id = signerID, let rec = store.key(id: id) else {
+                throw PGPService.PGPError.parseFailed("Pick a signing key")
+            }
+            guard let passphrase = await askPassphrase(for: rec) else { return }
+
+            let armored = try PGPService.sign(plaintext: input, with: rec, passphrase: passphrase)
+            armoredOutput = armored
+            showResultSheet = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func askPassphrase(for rec: KeyRecord) async -> String? {
+        await withCheckedContinuation { cont in
+            passphrasePrompt = PassphrasePromptContext(record: rec) { result in
+                passphrasePrompt = nil
+                cont.resume(returning: result)
+            }
+        }
+    }
+}
+
+// MARK: - Verify Workflow
+
+struct VerifyWorkflow: View {
+    @EnvironmentObject var store: KeyStore
+    @EnvironmentObject var theme: ThemeManager
+    @Environment(\.dismiss) var dismiss
+
+    @State private var inputText = ""
+    @State private var verifiedText = ""
+    @State private var isWorking = false
+    @State private var errorMessage: String? = nil
+    @State private var showResultSheet = false
+
+    var body: some View {
+        Form {
+            Section("Signed PGP Message") {
+                ZStack(alignment: .topLeading) {
+                    if inputText.isEmpty {
+                        Text("Paste signed PGP message starting with -----BEGIN PGP MESSAGE----- or -----BEGIN PGP SIGNED MESSAGE-----")
+                            .font(.callout.monospaced())
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 8)
+                            .allowsHitTesting(false)
+                    }
+                    TextEditor(text: $inputText)
+                        .font(.system(.callout, design: .monospaced))
+                        .frame(minHeight: 180)
+                        .scrollContentBackground(.hidden)
+                }
+                HStack {
+                    Button {
+                        if let s = UIPasteboard.general.string {
+                            inputText = s
+                        }
+                    } label: {
+                        Label("Paste", systemImage: "doc.on.clipboard")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Button {
+                        importFile(into: $inputText)
+                    } label: {
+                        Label("Import File", systemImage: "doc.badge.plus")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Spacer()
+                    
+                    Text("\(inputText.count) chars")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
+            if let errorMessage {
+                Section {
+                    Text(errorMessage)
+                        .foregroundStyle(.red)
+                        .font(.callout)
+                }
+            }
+
+            Section {
+                Button {
+                    Task { await runVerify() }
+                } label: {
+                    HStack {
+                        Spacer()
+                        if isWorking {
+                            ProgressView().controlSize(.regular)
+                        } else {
+                            Label("Verify Message", systemImage: "checkmark.seal.fill")
+                                .font(.body.weight(.bold))
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.glassProminent)
+                .disabled(inputText.isEmpty || isWorking)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(theme.current.backgroundColor.ignoresSafeArea())
+        .navigationTitle("Verify")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showResultSheet) {
+            NavigationStack {
+                VStack(spacing: 20) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.green.gradient)
+                        .padding(.top, 24)
+                        
+                    Text("Signature is VALID")
+                        .font(.title2.weight(.bold))
+                        
+                    Text("The signature on this message matches a public key in your keychain.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                        
+                    VStack(alignment: .trailing, spacing: 8) {
+                        ScrollView {
+                            Text(verifiedText)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                                .padding(12)
+                        }
+                        .frame(maxHeight: 280)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(theme.current.accentColor.opacity(0.2), lineWidth: 1)
+                        )
+                        
+                        HStack {
+                            Button {
+                                UIPasteboard.general.string = verifiedText
+                            } label: {
+                                Label("Copy Plaintext", systemImage: "doc.on.doc")
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            ShareLink(item: verifiedText) {
+                                Label("Share", systemImage: "square.and.arrow.up")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    
+                    Spacer()
+                    
+                    Button("Done") {
+                        showResultSheet = false
+                        dismiss()
+                    }
+                    .buttonStyle(.glassProminent)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
+                }
+                .background(theme.current.backgroundColor.ignoresSafeArea())
+                .navigationTitle("Verified Message")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        }
+    }
+
+    private func importFile(into binding: Binding<String>) {
+        guard let presenter = topMostViewController() else { return }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: true)
+        picker.allowsMultipleSelection = false
+        _ = PickerDelegate(picker: picker, onPicked: { urls in
+            guard let url = urls.first else { return }
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            if let data = try? Data(contentsOf: url),
+               let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) {
+                binding.wrappedValue = text
+            }
+        })
+        presenter.present(picker, animated: true)
+    }
+
+    private func runVerify() async {
+        errorMessage = nil
+        isWorking = true
+        defer { isWorking = false }
+
+        do {
+            let input = inputText
+            guard !input.isEmpty else { throw PGPService.PGPError.parseFailed("Nothing to verify") }
+            let result = try PGPService.verify(armoredMessage: input, using: store.publicKeys)
+            verifiedText = result
+            showResultSheet = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Passphrase Prompt Context
 
 /// Context object passed into the PassphraseSheet.
 struct PassphrasePromptContext: Identifiable {

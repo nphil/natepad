@@ -30,12 +30,13 @@ targets:
           - "project.yml"
           - ".github/**"
           - "ExportOptions.plist"
+          - "scratch-homebox/**"
     info:
       path: Info.plist
       properties:
         CFBundleDisplayName: NatePad
-        CFBundleShortVersionString: "1.1"
-        CFBundleVersion: "2"
+        CFBundleShortVersionString: "2.0"
+        CFBundleVersion: "3"
         UILaunchScreen: {}
         NSFaceIDUsageDescription: "Unlock Natepad to access your PGP keys"
         UISupportedInterfaceOrientations:

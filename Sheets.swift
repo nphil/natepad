@@ -96,7 +96,7 @@ struct GenerateKeySheet: View {
 // retains itself in init and releases that retain in its own callback methods, so it is
 // guaranteed to be alive between "Open" tap and callback fire.
 
-private final class PickerDelegate: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
+final class PickerDelegate: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
     private var strongSelf: PickerDelegate?
     private let onPicked: ([URL]) -> Void
     private let onCancel: () -> Void
@@ -129,7 +129,7 @@ private final class PickerDelegate: NSObject, UIDocumentPickerDelegate, UIAdapti
     }
 }
 
-private func topMostViewController() -> UIViewController? {
+func topMostViewController() -> UIViewController? {
     let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
     let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
     let window = scene?.windows.first(where: \.isKeyWindow) ?? scene?.windows.first

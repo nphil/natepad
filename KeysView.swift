@@ -2,6 +2,7 @@ import SwiftUI
 
 struct KeysView: View {
     @EnvironmentObject var store: KeyStore
+    @EnvironmentObject var theme: ThemeManager
 
     @State private var showGenerate = false
     @State private var showImport = false
@@ -23,7 +24,7 @@ struct KeysView: View {
                     keyList
                 }
             }
-            .background(ThemeBackground().ignoresSafeArea())
+            .background(theme.current.backgroundColor.ignoresSafeArea())
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -58,7 +59,7 @@ struct KeysView: View {
             Spacer()
             Image(systemName: "key.fill")
                 .font(.system(size: 56))
-                .foregroundStyle(.indigo.gradient)
+                .foregroundStyle(theme.current.accentColor.gradient)
             Text("No keys yet")
                 .font(.title2.weight(.semibold))
             Text("Generate a new key pair or import one to get started.")
