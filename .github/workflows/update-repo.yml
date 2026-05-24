@@ -49,6 +49,7 @@ jobs:
 
           new_ver = {
               "version": version,
+              "buildVersion": version,
               "date": date,
               "localizedDescription": body,
               "downloadURL": url,
@@ -57,24 +58,6 @@ jobs:
 
           # Newest version first
           app['versions'].insert(0, new_ver)
-
-          # Keep top-level fields pointing at latest
-          app['version']            = version
-          app['versionDate']        = date
-          app['versionDescription'] = body
-          app['downloadURL']        = url
-          app['size']               = size
-
-          data['news'].insert(0, {
-              "appID":      "com.natepad.app",
-              "title":      f"NatePad {version} available",
-              "identifier": f"release-{version}",
-              "caption":    "New version of NatePad available!",
-              "date":       date,
-              "tintColor":  "#5856D6",
-              "notify":     True,
-              "url":        f"https://github.com/nphil/natepad-ios/releases/tag/{tag}"
-          })
 
           with open('apps.json', 'w') as f:
               json.dump(data, f, indent=2)
