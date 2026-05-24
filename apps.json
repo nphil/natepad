@@ -21,6 +21,13 @@
       "screenshots": [],
       "versions": [
         {
+          "version": "2.0",
+          "date": "2026-05-24T13:44:29Z",
+          "localizedDescription": "Unsigned IPA \u2014 sideload with AltStore. Built from `dd47e36` on 2026-05-24 13:44 UTC",
+          "downloadURL": "https://github.com/nphil/natepad-ios/releases/download/v2.0/Natepad.ipa",
+          "size": 1005867
+        },
+        {
           "version": "1.1",
           "date": "2026-04-26T21:53:19Z",
           "localizedDescription": "## What's new in 1.1\n\n**Decrypt key selector** \u2014 when you have multiple private keys, Decrypt mode now shows a picker so you choose exactly which key to use. No more entering passphrases for keys that don't match. Default is Auto-detect (tries all keys), which still works for single-key setups.\n\n**Richer theme backgrounds** \u2014 three blurred orbs instead of two, with a dark accent-tinted base replacing pure black. Roughly half as much black showing through.\n\n**Accent tinting throughout** \u2014 GlassCards, text areas, borders, recipient chips, and section titles now pick up the active theme colour instead of plain grey.\n\n**Bug fix** \u2014 multiple private keys no longer cause repeated passphrase prompts during decrypt.\n\n## Install via Feather / AltStore\n1. Download `Natepad.ipa`\n2. Open Feather or AltStore \u2192 **+** \u2192 choose the IPA\n\n> Or add the repo source to Feather for automatic updates:\n> `https://raw.githubusercontent.com/nphil/natepad-ios/main/apps.json`",
@@ -43,14 +50,24 @@
           "FaceID": "NatePad uses Face ID to lock access to your keys."
         }
       },
-      "version": "1.1",
-      "versionDate": "2026-04-26T21:53:19Z",
-      "versionDescription": "## What's new in 1.1\n\n**Decrypt key selector** \u2014 when you have multiple private keys, Decrypt mode now shows a picker so you choose exactly which key to use. No more entering passphrases for keys that don't match. Default is Auto-detect (tries all keys), which still works for single-key setups.\n\n**Richer theme backgrounds** \u2014 three blurred orbs instead of two, with a dark accent-tinted base replacing pure black. Roughly half as much black showing through.\n\n**Accent tinting throughout** \u2014 GlassCards, text areas, borders, recipient chips, and section titles now pick up the active theme colour instead of plain grey.\n\n**Bug fix** \u2014 multiple private keys no longer cause repeated passphrase prompts during decrypt.\n\n## Install via Feather / AltStore\n1. Download `Natepad.ipa`\n2. Open Feather or AltStore \u2192 **+** \u2192 choose the IPA\n\n> Or add the repo source to Feather for automatic updates:\n> `https://raw.githubusercontent.com/nphil/natepad-ios/main/apps.json`",
-      "downloadURL": "https://github.com/nphil/natepad-ios/releases/download/v1.1/Natepad.ipa",
-      "size": 976101
+      "version": "2.0",
+      "versionDate": "2026-05-24T13:44:29Z",
+      "versionDescription": "Unsigned IPA \u2014 sideload with AltStore. Built from `dd47e36` on 2026-05-24 13:44 UTC",
+      "downloadURL": "https://github.com/nphil/natepad-ios/releases/download/v2.0/Natepad.ipa",
+      "size": 1005867
     }
   ],
   "news": [
+    {
+      "appID": "com.natepad.app",
+      "title": "NatePad 2.0 available",
+      "identifier": "release-2.0",
+      "caption": "New version of NatePad available!",
+      "date": "2026-05-24T13:44:29Z",
+      "tintColor": "#5856D6",
+      "notify": true,
+      "url": "https://github.com/nphil/natepad-ios/releases/tag/v2.0"
+    },
     {
       "appID": "com.natepad.app",
       "title": "NatePad 1.1 available",
