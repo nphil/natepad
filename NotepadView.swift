@@ -199,27 +199,30 @@ struct EncryptWorkflow: View {
     }
 
     var body: some View {
-        Form {
-            Section("Recipients") {
+        VStack(spacing: 14) {
+            // Recipients card
+            GlassSection("Recipients") {
                 if recipientIDs.isEmpty {
                     Text("Select who can decrypt this message.")
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
-                    ForEach(selectedRecipients) { rec in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(rec.primaryUser.name.isEmpty ? "(unnamed)" : rec.primaryUser.name)
-                                    .font(.callout.weight(.medium))
-                                if !rec.primaryUser.email.isEmpty {
-                                    Text(rec.primaryUser.email)
-                                        .font(.caption2).foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(selectedRecipients) { rec in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(rec.primaryUser.name.isEmpty ? "(unnamed)" : rec.primaryUser.name)
+                                        .font(.callout.weight(.medium))
+                                    if !rec.primaryUser.email.isEmpty {
+                                        Text(rec.primaryUser.email)
+                                            .font(.caption2).foregroundStyle(.secondary)
+                                    }
                                 }
-                            }
-                            Spacer()
-                            Button(role: .destructive) {
-                                recipientIDs.removeAll { $0 == rec.id }
-                            } label: {
-                                Image(systemName: "minus.circle.fill").foregroundStyle(.red)
+                                Spacer()
+                                Button(role: .destructive) {
+                                    recipientIDs.removeAll { $0 == rec.id }
+                                } label: {
+                                    Image(systemName: "minus.circle.fill").foregroundStyle(.red)
+                                }
                             }
                         }
                     }
@@ -233,6 +236,7 @@ struct EncryptWorkflow: View {
                     } label: {
                         HStack {
                             Label("Add Recipient", systemImage: "plus.circle.fill")
+                                .foregroundStyle(theme.current.accentColor)
                             Spacer()
                             Image(systemName: "chevron.up.chevron.down").font(.caption2).foregroundStyle(.secondary)
                         }
@@ -243,17 +247,24 @@ struct EncryptWorkflow: View {
                 }
             }
 
-            Section("Signing Key (Optional)") {
-                Picker("Sign with", selection: $signerID) {
-                    Text("Don't sign").tag(String?.none)
-                    ForEach(store.privateKeys) { rec in
-                        Text(rec.label).tag(String?.some(rec.id))
+            // Signing key card
+            GlassSection("Signing Key (Optional)") {
+                HStack {
+                    Text("Sign with").font(.callout)
+                    Spacer()
+                    Picker("Sign with", selection: $signerID) {
+                        Text("Don't sign").tag(String?.none)
+                        ForEach(store.privateKeys) { rec in
+                            Text(rec.label).tag(String?.some(rec.id))
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .tint(theme.current.accentColor)
                 }
-                .pickerStyle(.menu)
             }
 
-            Section("Plaintext Message") {
+            // Plaintext Message Editor
+            GlassSection("Plaintext Message") {
                 ZStack(alignment: .topLeading) {
                     if inputText.isEmpty {
                         Text("Enter message to encrypt...")
@@ -265,9 +276,12 @@ struct EncryptWorkflow: View {
                     }
                     TextEditor(text: $inputText)
                         .font(.system(.callout, design: .monospaced))
-                        .frame(minHeight: 180)
+                        .frame(height: 120)
                         .scrollContentBackground(.hidden)
                 }
+                
+                Divider()
+                
                 HStack {
                     Button {
                         if let s = UIPasteboard.general.string {
@@ -276,53 +290,54 @@ struct EncryptWorkflow: View {
                     } label: {
                         Label("Paste", systemImage: "doc.on.clipboard")
                     }
-                    .buttonStyle(.bordered)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
                     
                     Button {
                         importFile(into: $inputText)
                     } label: {
                         Label("Import File", systemImage: "doc.badge.plus")
                     }
-                    .buttonStyle(.bordered)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
                     
                     Spacer()
                     
-                    Text("\(inputText.count) chars • \(wordCount(inputText)) words")
-                        .font(.caption).foregroundStyle(.secondary)
+                    Text("\(inputText.count) ch • \(wordCount(inputText)) w")
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
             }
 
             if let errorMessage {
-                Section {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.callout)
-                }
+                Text(errorMessage)
+                    .foregroundStyle(.red)
+                    .font(.caption)
+                    .padding(.horizontal, 4)
             }
 
-            Section {
-                Button {
-                    Task { await runEncrypt() }
-                } label: {
-                    HStack {
-                        Spacer()
-                        if isWorking {
-                            ProgressView().controlSize(.regular)
-                        } else {
-                            Label(signerID == nil ? "Encrypt Message" : "Encrypt & Sign Message", systemImage: "lock.fill")
-                                .font(.body.weight(.bold))
-                        }
-                        Spacer()
+            Spacer()
+
+            // Main Action Button
+            Button {
+                Task { await runEncrypt() }
+            } label: {
+                HStack {
+                    Spacer()
+                    if isWorking {
+                        ProgressView().controlSize(.regular)
+                    } else {
+                        Label(signerID == nil ? "Encrypt Message" : "Encrypt & Sign Message", systemImage: "lock.fill")
+                            .font(.body.weight(.bold))
                     }
-                    .padding(.vertical, 8)
+                    Spacer()
                 }
-                .buttonStyle(.glassProminent)
-                .disabled(inputText.isEmpty || recipientIDs.isEmpty || isWorking)
+                .padding(.vertical, 12)
             }
+            .buttonStyle(.glassProminent)
+            .disabled(inputText.isEmpty || recipientIDs.isEmpty || isWorking)
         }
-        .scrollContentBackground(.hidden)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16)
         .background(theme.current.backgroundColor.ignoresSafeArea())
         .navigationTitle("Encrypt")
         .navigationBarTitleDisplayMode(.inline)
@@ -367,14 +382,14 @@ struct EncryptWorkflow: View {
                             } label: {
                                 Label("Copy PGP Block", systemImage: "doc.on.doc")
                             }
-                            .buttonStyle(.bordered)
-                            .fixedSize(horizontal: true, vertical: false)
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
                             
                             ShareLink(item: armoredOutput) {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
-                            .buttonStyle(.bordered)
-                            .fixedSize(horizontal: true, vertical: false)
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -476,18 +491,25 @@ struct DecryptWorkflow: View {
     @State private var passphrasePrompt: PassphrasePromptContext? = nil
 
     var body: some View {
-        Form {
-            Section("Decryption Key") {
-                Picker("Decrypt with", selection: $decryptKeyID) {
-                    Text("Auto-detect (Try all keys)").tag(String?.none)
-                    ForEach(store.privateKeys) { rec in
-                        Text(rec.label).tag(String?.some(rec.id))
+        VStack(spacing: 14) {
+            // Decryption key card
+            GlassSection("Decryption Key") {
+                HStack {
+                    Text("Decrypt with").font(.callout)
+                    Spacer()
+                    Picker("Decrypt with", selection: $decryptKeyID) {
+                        Text("Auto-detect (Try all keys)").tag(String?.none)
+                        ForEach(store.privateKeys) { rec in
+                            Text(rec.label).tag(String?.some(rec.id))
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .tint(theme.current.accentColor)
                 }
-                .pickerStyle(.menu)
             }
 
-            Section("Encrypted Message (PGP Message)") {
+            // Encrypted Message Editor
+            GlassSection("Encrypted Message (PGP Message)") {
                 ZStack(alignment: .topLeading) {
                     if inputText.isEmpty {
                         Text("Paste PGP message starting with -----BEGIN PGP MESSAGE-----")
@@ -499,9 +521,12 @@ struct DecryptWorkflow: View {
                     }
                     TextEditor(text: $inputText)
                         .font(.system(.callout, design: .monospaced))
-                        .frame(minHeight: 180)
+                        .frame(height: 180)
                         .scrollContentBackground(.hidden)
                 }
+                
+                Divider()
+                
                 HStack {
                     Button {
                         if let s = UIPasteboard.general.string {
@@ -510,53 +535,54 @@ struct DecryptWorkflow: View {
                     } label: {
                         Label("Paste", systemImage: "doc.on.clipboard")
                     }
-                    .buttonStyle(.bordered)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
                     
                     Button {
                         importFile(into: $inputText)
                     } label: {
                         Label("Import File", systemImage: "doc.badge.plus")
                     }
-                    .buttonStyle(.bordered)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
                     
                     Spacer()
                     
                     Text("\(inputText.count) chars")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
             }
 
             if let errorMessage {
-                Section {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.callout)
-                }
+                Text(errorMessage)
+                    .foregroundStyle(.red)
+                    .font(.caption)
+                    .padding(.horizontal, 4)
             }
 
-            Section {
-                Button {
-                    Task { await runDecrypt() }
-                } label: {
-                    HStack {
-                        Spacer()
-                        if isWorking {
-                            ProgressView().controlSize(.regular)
-                        } else {
-                            Label("Decrypt Message", systemImage: "lock.open.fill")
-                                .font(.body.weight(.bold))
-                        }
-                        Spacer()
+            Spacer()
+
+            // Main Action Button
+            Button {
+                Task { await runDecrypt() }
+            } label: {
+                HStack {
+                    Spacer()
+                    if isWorking {
+                        ProgressView().controlSize(.regular)
+                    } else {
+                        Label("Decrypt Message", systemImage: "lock.open.fill")
+                            .font(.body.weight(.bold))
                     }
-                    .padding(.vertical, 8)
+                    Spacer()
                 }
-                .buttonStyle(.glassProminent)
-                .disabled(inputText.isEmpty || isWorking)
+                .padding(.vertical, 12)
             }
+            .buttonStyle(.glassProminent)
+            .disabled(inputText.isEmpty || isWorking)
         }
-        .scrollContentBackground(.hidden)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16)
         .background(theme.current.backgroundColor.ignoresSafeArea())
         .navigationTitle("Decrypt")
         .navigationBarTitleDisplayMode(.inline)
@@ -595,14 +621,14 @@ struct DecryptWorkflow: View {
                             } label: {
                                 Label("Copy Plaintext", systemImage: "doc.on.doc")
                             }
-                            .buttonStyle(.bordered)
-                            .fixedSize(horizontal: true, vertical: false)
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
                             
                             ShareLink(item: decryptedText) {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
-                            .buttonStyle(.bordered)
-                            .fixedSize(horizontal: true, vertical: false)
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -709,18 +735,25 @@ struct SignWorkflow: View {
     @State private var passphrasePrompt: PassphrasePromptContext? = nil
 
     var body: some View {
-        Form {
-            Section("Signing Key") {
-                Picker("Sign with", selection: $signerID) {
-                    Text("Select a key").tag(String?.none)
-                    ForEach(store.privateKeys) { rec in
-                        Text(rec.label).tag(String?.some(rec.id))
+        VStack(spacing: 14) {
+            // Signing key card
+            GlassSection("Signing Key") {
+                HStack {
+                    Text("Sign with").font(.callout)
+                    Spacer()
+                    Picker("Sign with", selection: $signerID) {
+                        Text("Select a key").tag(String?.none)
+                        ForEach(store.privateKeys) { rec in
+                            Text(rec.label).tag(String?.some(rec.id))
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .tint(theme.current.accentColor)
                 }
-                .pickerStyle(.menu)
             }
 
-            Section("Message Plaintext") {
+            // Plaintext Message Editor
+            GlassSection("Plaintext Message") {
                 ZStack(alignment: .topLeading) {
                     if inputText.isEmpty {
                         Text("Enter the message text to sign...")
@@ -732,9 +765,12 @@ struct SignWorkflow: View {
                     }
                     TextEditor(text: $inputText)
                         .font(.system(.callout, design: .monospaced))
-                        .frame(minHeight: 180)
+                        .frame(height: 180)
                         .scrollContentBackground(.hidden)
                 }
+                
+                Divider()
+                
                 HStack {
                     Button {
                         if let s = UIPasteboard.general.string {
@@ -743,53 +779,54 @@ struct SignWorkflow: View {
                     } label: {
                         Label("Paste", systemImage: "doc.on.clipboard")
                     }
-                    .buttonStyle(.bordered)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
                     
                     Button {
                         importFile(into: $inputText)
                     } label: {
                         Label("Import File", systemImage: "doc.badge.plus")
                     }
-                    .buttonStyle(.bordered)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
                     
                     Spacer()
                     
                     Text("\(inputText.count) chars")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
             }
 
             if let errorMessage {
-                Section {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.callout)
-                }
+                Text(errorMessage)
+                    .foregroundStyle(.red)
+                    .font(.caption)
+                    .padding(.horizontal, 4)
             }
 
-            Section {
-                Button {
-                    Task { await runSign() }
-                } label: {
-                    HStack {
-                        Spacer()
-                        if isWorking {
-                            ProgressView().controlSize(.regular)
-                        } else {
-                            Label("Sign Message", systemImage: "signature")
-                                .font(.body.weight(.bold))
-                        }
-                        Spacer()
+            Spacer()
+
+            // Main Action Button
+            Button {
+                Task { await runSign() }
+            } label: {
+                HStack {
+                    Spacer()
+                    if isWorking {
+                        ProgressView().controlSize(.regular)
+                    } else {
+                        Label("Sign Message", systemImage: "signature")
+                            .font(.body.weight(.bold))
                     }
-                    .padding(.vertical, 8)
+                    Spacer()
                 }
-                .buttonStyle(.glassProminent)
-                .disabled(inputText.isEmpty || signerID == nil || isWorking)
+                .padding(.vertical, 12)
             }
+            .buttonStyle(.glassProminent)
+            .disabled(inputText.isEmpty || signerID == nil || isWorking)
         }
-        .scrollContentBackground(.hidden)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16)
         .background(theme.current.backgroundColor.ignoresSafeArea())
         .navigationTitle("Sign")
         .navigationBarTitleDisplayMode(.inline)
@@ -828,14 +865,14 @@ struct SignWorkflow: View {
                             } label: {
                                 Label("Copy Signed PGP Block", systemImage: "doc.on.doc")
                             }
-                            .buttonStyle(.bordered)
-                            .fixedSize(horizontal: true, vertical: false)
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
                             
                             ShareLink(item: armoredOutput) {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
-                            .buttonStyle(.bordered)
-                            .fixedSize(horizontal: true, vertical: false)
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -922,8 +959,9 @@ struct VerifyWorkflow: View {
     @State private var showResultSheet = false
 
     var body: some View {
-        Form {
-            Section("Signed PGP Message") {
+        VStack(spacing: 14) {
+            // Signed PGP Message Editor
+            GlassSection("Signed PGP Message") {
                 ZStack(alignment: .topLeading) {
                     if inputText.isEmpty {
                         Text("Paste signed PGP message starting with -----BEGIN PGP MESSAGE----- or -----BEGIN PGP SIGNED MESSAGE-----")
@@ -935,9 +973,12 @@ struct VerifyWorkflow: View {
                     }
                     TextEditor(text: $inputText)
                         .font(.system(.callout, design: .monospaced))
-                        .frame(minHeight: 180)
+                        .frame(height: 220)
                         .scrollContentBackground(.hidden)
                 }
+                
+                Divider()
+                
                 HStack {
                     Button {
                         if let s = UIPasteboard.general.string {
@@ -946,53 +987,54 @@ struct VerifyWorkflow: View {
                     } label: {
                         Label("Paste", systemImage: "doc.on.clipboard")
                     }
-                    .buttonStyle(.bordered)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
                     
                     Button {
                         importFile(into: $inputText)
                     } label: {
                         Label("Import File", systemImage: "doc.badge.plus")
                     }
-                    .buttonStyle(.bordered)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
                     
                     Spacer()
                     
                     Text("\(inputText.count) chars")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
             }
 
             if let errorMessage {
-                Section {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.callout)
-                }
+                Text(errorMessage)
+                    .foregroundStyle(.red)
+                    .font(.caption)
+                    .padding(.horizontal, 4)
             }
 
-            Section {
-                Button {
-                    Task { await runVerify() }
-                } label: {
-                    HStack {
-                        Spacer()
-                        if isWorking {
-                            ProgressView().controlSize(.regular)
-                        } else {
-                            Label("Verify Message", systemImage: "checkmark.seal.fill")
-                                .font(.body.weight(.bold))
-                        }
-                        Spacer()
+            Spacer()
+
+            // Main Action Button
+            Button {
+                Task { await runVerify() }
+            } label: {
+                HStack {
+                    Spacer()
+                    if isWorking {
+                        ProgressView().controlSize(.regular)
+                    } else {
+                        Label("Verify Message", systemImage: "checkmark.seal.fill")
+                            .font(.body.weight(.bold))
                     }
-                    .padding(.vertical, 8)
+                    Spacer()
                 }
-                .buttonStyle(.glassProminent)
-                .disabled(inputText.isEmpty || isWorking)
+                .padding(.vertical, 12)
             }
+            .buttonStyle(.glassProminent)
+            .disabled(inputText.isEmpty || isWorking)
         }
-        .scrollContentBackground(.hidden)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16)
         .background(theme.current.backgroundColor.ignoresSafeArea())
         .navigationTitle("Verify")
         .navigationBarTitleDisplayMode(.inline)
@@ -1037,14 +1079,14 @@ struct VerifyWorkflow: View {
                             } label: {
                                 Label("Copy Plaintext", systemImage: "doc.on.doc")
                             }
-                            .buttonStyle(.bordered)
-                            .fixedSize(horizontal: true, vertical: false)
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
                             
                             ShareLink(item: verifiedText) {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
-                            .buttonStyle(.bordered)
-                            .fixedSize(horizontal: true, vertical: false)
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -1106,4 +1148,34 @@ struct PassphrasePromptContext: Identifiable {
     let id = UUID()
     let record: KeyRecord
     let onResult: (String?) -> Void
+}
+
+struct GlassSection<Content: View>: View {
+    let title: String
+    let content: Content
+    
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+            
+            VStack(alignment: .leading, spacing: 10) {
+                content
+            }
+            .padding(12)
+            .background(Color.primary.opacity(0.04))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
+        }
+    }
 }
