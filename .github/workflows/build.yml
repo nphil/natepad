@@ -85,6 +85,17 @@ jobs:
           cd ..
           echo "Web zip size: $(du -sh Natepad-Web.zip | cut -f1)"
 
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd web
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Deploy NatePad Web to GitHub Pages [skip ci]"
+          git push --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:gh-pages
+
       - name: Determine release tag
         id: tag
         run: |

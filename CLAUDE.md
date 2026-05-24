@@ -5,7 +5,7 @@ PGP notepad iPhone app. Encrypt/decrypt/sign/verify messages, manage PGP keys (g
 Target: iOS 26, Liquid Glass UI, sideloaded via AltStore (no App Store).
 
 ## Repo
-`https://github.com/nphil/natepad-ios` — every push to `main` triggers CI and produces an IPA.
+`https://github.com/nphil/natepad` — every push to `main` triggers CI and produces an IPA.
 IPA download: GitHub Releases → "latest" pre-release (overwritten on each main push).
 
 ## Build / CI
@@ -65,7 +65,7 @@ Replace `Assets.xcassets/AppIcon.appiconset/AppIcon.png` with a new 1024×1024 P
 
 ### Push and trigger a build
 ```bash
-cd "/Users/nitin/AI Playground/Natepad-iOS"
+cd "/Users/nitin/Documents/antigravity/NatePad"
 git add <files>
 git commit -m "..."
 git push origin main

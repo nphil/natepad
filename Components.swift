@@ -184,7 +184,8 @@ struct SettingsView: View {
                 Section("About") {
                     LabeledContent("Stored keys", value: "\(store.keys.count)")
                     LabeledContent("Engine", value: "ObjectivePGP")
-                    Link("Source on GitHub", destination: URL(string: "https://github.com/nphil/natepad-ios")!)
+                    Link("Source on GitHub", destination: URL(string: "https://github.com/nphil/natepad")!)
+                    Link("NatePad Web App", destination: URL(string: "https://nphil.github.io/natepad")!)
                 }
 
                 Section {

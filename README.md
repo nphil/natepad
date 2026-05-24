@@ -1,6 +1,10 @@
-# Natepad for iOS
+# NatePad (iOS & Web)
 
-Native SwiftUI port of Natepad (PGP notepad + key manager) for iPhone, optimized for iOS 26 Liquid Glass. Built and signed via GitHub Actions — no local Xcode build required.
+A dual-platform PGP notepad + key manager. Features a native iOS SwiftUI app optimized for iOS 26 Liquid Glass, and a fully offline-first web application optimized for modern desktop and mobile browsers.
+
+Both platforms are built, signed, and published via GitHub Actions:
+- **iOS App**: Packaged into an unsigned `.ipa` attached to GitHub releases.
+- **Web App**: Deployed automatically to [GitHub Pages](https://nphil.github.io/natepad/) and also attached as `Natepad-Web.zip` to releases.
 
 ---
 
@@ -20,12 +24,12 @@ Native SwiftUI port of Natepad (PGP notepad + key manager) for iPhone, optimized
 ### 1. Push the code to a private GitHub repo
 
 ```bash
-cd "Natepad-iOS"
+cd "NatePad"
 git init
 git add .
 git commit -m "Initial commit"
 git branch -M main
-git remote add origin git@github.com:YOUR_USER/natepad-ios.git
+git remote add origin git@github.com:YOUR_USER/natepad.git
 git push -u origin main
 ```
 
