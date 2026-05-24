@@ -78,6 +78,13 @@ jobs:
           zip -r Natepad.ipa Payload/
           echo "IPA size: $(du -sh Natepad.ipa | cut -f1)"
 
+      - name: Package web app
+        run: |
+          cd web
+          zip -r ../Natepad-Web.zip .
+          cd ..
+          echo "Web zip size: $(du -sh Natepad-Web.zip | cut -f1)"
+
       - name: Determine release tag
         id: tag
         run: |
@@ -104,6 +111,7 @@ jobs:
           SHORT_SHA="${GITHUB_SHA::7}"
           gh release create "${{ steps.tag.outputs.tag }}" \
             Natepad.ipa \
+            Natepad-Web.zip \
             --title "${{ steps.tag.outputs.title }}" \
             --notes "Unsigned IPA — sideload with AltStore. Built from \`$SHORT_SHA\` on $(date -u +'%Y-%m-%d %H:%M UTC')" \
             ${{ steps.tag.outputs.prerelease == 'true' && '--prerelease' || '' }}

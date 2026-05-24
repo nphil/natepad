@@ -72,5 +72,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add apps.json
           git diff --cached --quiet && echo "Nothing to commit" && exit 0
-          git commit -m "Update Feather repo for ${{ github.event.release.tag_name }} [skip ci]"
+          git commit -m "fix: update apps.json release ${{ github.event.release.tag_name }} size and hash details [skip ci]"
           git push

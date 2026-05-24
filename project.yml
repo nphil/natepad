@@ -31,6 +31,9 @@ targets:
           - ".github/**"
           - "ExportOptions.plist"
           - "scratch-homebox/**"
+          - "web/**"
+          - "ATS-Mini/**"
+          - ".git/**"
     info:
       path: Info.plist
       properties:

@@ -1,6 +1,6 @@
 {
-  "name": "NatePad Repo",
-  "subtitle": "Repository for the NatePad iOS app",
+  "name": "NatePad",
+  "subtitle": "NatePad iOS & Web App Repository",
   "description": "An AltStore/Feather compatible source for the NatePad PGP notepad iOS application.",
   "iconURL": "https://raw.githubusercontent.com/nphil/natepad-ios/main/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
   "website": "https://github.com/nphil/natepad-ios",
