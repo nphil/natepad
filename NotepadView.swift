@@ -277,6 +277,7 @@ struct EncryptWorkflow: View {
                         Label("Paste", systemImage: "doc.on.clipboard")
                     }
                     .buttonStyle(.bordered)
+                    .fixedSize(horizontal: true, vertical: false)
                     
                     Button {
                         importFile(into: $inputText)
@@ -284,6 +285,7 @@ struct EncryptWorkflow: View {
                         Label("Import File", systemImage: "doc.badge.plus")
                     }
                     .buttonStyle(.bordered)
+                    .fixedSize(horizontal: true, vertical: false)
                     
                     Spacer()
                     
@@ -366,11 +368,13 @@ struct EncryptWorkflow: View {
                                 Label("Copy PGP Block", systemImage: "doc.on.doc")
                             }
                             .buttonStyle(.bordered)
+                            .fixedSize(horizontal: true, vertical: false)
                             
                             ShareLink(item: armoredOutput) {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
                             .buttonStyle(.bordered)
+                            .fixedSize(horizontal: true, vertical: false)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -507,6 +511,7 @@ struct DecryptWorkflow: View {
                         Label("Paste", systemImage: "doc.on.clipboard")
                     }
                     .buttonStyle(.bordered)
+                    .fixedSize(horizontal: true, vertical: false)
                     
                     Button {
                         importFile(into: $inputText)
@@ -514,6 +519,7 @@ struct DecryptWorkflow: View {
                         Label("Import File", systemImage: "doc.badge.plus")
                     }
                     .buttonStyle(.bordered)
+                    .fixedSize(horizontal: true, vertical: false)
                     
                     Spacer()
                     
@@ -590,11 +596,13 @@ struct DecryptWorkflow: View {
                                 Label("Copy Plaintext", systemImage: "doc.on.doc")
                             }
                             .buttonStyle(.bordered)
+                            .fixedSize(horizontal: true, vertical: false)
                             
                             ShareLink(item: decryptedText) {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
                             .buttonStyle(.bordered)
+                            .fixedSize(horizontal: true, vertical: false)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -736,6 +744,7 @@ struct SignWorkflow: View {
                         Label("Paste", systemImage: "doc.on.clipboard")
                     }
                     .buttonStyle(.bordered)
+                    .fixedSize(horizontal: true, vertical: false)
                     
                     Button {
                         importFile(into: $inputText)
@@ -743,6 +752,7 @@ struct SignWorkflow: View {
                         Label("Import File", systemImage: "doc.badge.plus")
                     }
                     .buttonStyle(.bordered)
+                    .fixedSize(horizontal: true, vertical: false)
                     
                     Spacer()
                     
@@ -819,11 +829,13 @@ struct SignWorkflow: View {
                                 Label("Copy Signed PGP Block", systemImage: "doc.on.doc")
                             }
                             .buttonStyle(.bordered)
+                            .fixedSize(horizontal: true, vertical: false)
                             
                             ShareLink(item: armoredOutput) {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
                             .buttonStyle(.bordered)
+                            .fixedSize(horizontal: true, vertical: false)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -935,6 +947,7 @@ struct VerifyWorkflow: View {
                         Label("Paste", systemImage: "doc.on.clipboard")
                     }
                     .buttonStyle(.bordered)
+                    .fixedSize(horizontal: true, vertical: false)
                     
                     Button {
                         importFile(into: $inputText)
@@ -942,6 +955,7 @@ struct VerifyWorkflow: View {
                         Label("Import File", systemImage: "doc.badge.plus")
                     }
                     .buttonStyle(.bordered)
+                    .fixedSize(horizontal: true, vertical: false)
                     
                     Spacer()
                     
@@ -1024,11 +1038,13 @@ struct VerifyWorkflow: View {
                                 Label("Copy Plaintext", systemImage: "doc.on.doc")
                             }
                             .buttonStyle(.bordered)
+                            .fixedSize(horizontal: true, vertical: false)
                             
                             ShareLink(item: verifiedText) {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
                             .buttonStyle(.bordered)
+                            .fixedSize(horizontal: true, vertical: false)
                         }
                     }
                     .padding(.horizontal, 16)

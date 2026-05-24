@@ -140,27 +140,31 @@ struct KeyRow: View {
                 .font(.caption2.monospaced())
                 .foregroundStyle(.tertiary)
 
-            HStack(spacing: 8) {
-                if record.hasPublic {
-                    Button {
-                        exportContext = .init(record: record, kind: .publicKey)
-                    } label: {
-                        Label("Public", systemImage: "square.and.arrow.up")
-                            .font(.caption)
+            HStack {
+                Spacer()
+                HStack(spacing: 8) {
+                    if record.hasPublic {
+                        Button {
+                            exportContext = .init(record: record, kind: .publicKey)
+                        } label: {
+                            Label("Public", systemImage: "square.and.arrow.up")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
                     }
-                    .buttonStyle(.glass)
-                    .controlSize(.small)
-                }
-                if record.hasPrivate {
-                    Button {
-                        exportContext = .init(record: record, kind: .privateKey)
-                    } label: {
-                        Label("Private", systemImage: "square.and.arrow.up")
-                            .font(.caption)
+                    if record.hasPrivate {
+                        Button {
+                            exportContext = .init(record: record, kind: .privateKey)
+                        } label: {
+                            Label("Private", systemImage: "square.and.arrow.up")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
                     }
-                    .buttonStyle(.glass)
-                    .controlSize(.small)
                 }
+                Spacer()
             }
             .padding(.top, 4)
         }
