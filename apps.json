@@ -17,6 +17,14 @@
       "category": "utilities",
       "versions": [
         {
+          "version": "2.1",
+          "buildVersion": "2.1",
+          "date": "2026-05-24T15:43:16Z",
+          "localizedDescription": "## What's new in 2.1\n\n**NatePad Web App** — a fully offline web app that mirrors the iOS app. Download `Natepad-Web.zip` from the release, extract, and open `index.html` in any modern browser.\n\n**All 31 themes** from the iOS app are available in the web version.\n\n**Full PGP operations** — Encrypt, Decrypt, Sign, and Verify messages using OpenPGP.js v5.11.2.\n\n**Key Management** — Generate ECC (Curve25519) or RSA-4096 key pairs, import/export armored keys.\n\n## Install iOS app via Feather / AltStore\n1. Download `Natepad.ipa`\n2. Open Feather or AltStore → **+** → choose the IPA\n\n> Or add the repo source to Feather for automatic updates:\n> `https://raw.githubusercontent.com/nphil/natepad-ios/main/apps.json`",
+          "downloadURL": "https://github.com/nphil/natepad-ios/releases/download/v2.1/Natepad.ipa",
+          "size": 997093
+        },
+        {
           "version": "2.0",
           "buildVersion": "2.0",
           "date": "2026-05-24T14:01:04Z",
