@@ -1,15 +1,17 @@
 name: Update Feather repo
 
-# Fires whenever a non-prerelease GitHub Release is published.
-# Downloads the IPA size from the release assets, patches apps.json,
-# and commits it back to main so Feather sees the new version.
+# Fires on every published release — both versioned (v2.1) and the rolling
+# "latest" prerelease created by every push to main.
+#
+# Versioned releases: inserted as a new entry at the top of apps.json.
+# Rolling "latest" prerelease: gets a date-based version (e.g. 2026.05.25)
+# and replaces the previous rolling entry so history stays clean.
 on:
   release:
     types: [published]
 
 jobs:
   update:
-    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -24,16 +26,17 @@ jobs:
           TAG_NAME:     ${{ github.event.release.tag_name }}
           PUBLISHED_AT: ${{ github.event.release.published_at }}
           RELEASE_BODY: ${{ github.event.release.body }}
+          PRERELEASE:   ${{ github.event.release.prerelease }}
           ASSETS_JSON:  ${{ toJson(github.event.release.assets) }}
         run: |
           python3 - << 'PYEOF'
-          import json, os
+          import json, os, re
 
-          tag     = os.environ['TAG_NAME']
-          version = tag.lstrip('v')
-          date    = os.environ['PUBLISHED_AT']
-          body    = os.environ.get('RELEASE_BODY', '')
-          assets  = json.loads(os.environ['ASSETS_JSON'])
+          tag        = os.environ['TAG_NAME']
+          date       = os.environ['PUBLISHED_AT']
+          body       = os.environ.get('RELEASE_BODY', '')
+          assets     = json.loads(os.environ['ASSETS_JSON'])
+          prerelease = os.environ.get('PRERELEASE', 'false').lower() == 'true'
 
           ipa = next((a for a in assets if a['name'].endswith('.ipa')), None)
           if not ipa:
@@ -47,23 +50,41 @@ jobs:
 
           app = data['apps'][0]
 
-          new_ver = {
-              "version": version,
-              "buildVersion": version,
-              "date": date,
-              "localizedDescription": body,
-              "downloadURL": url,
-              "size": size
-          }
-
-          # Newest version first
-          app['versions'].insert(0, new_ver)
+          if prerelease or tag == 'latest':
+              # Rolling build — use a date-based version and replace the
+              # previous rolling entry (identified by a 4-digit year prefix)
+              # so the version list doesn't grow on every push to main.
+              ver_str = date[:10].replace('-', '.')  # e.g. "2026.05.25"
+              new_ver = {
+                  "version": ver_str,
+                  "buildVersion": ver_str,
+                  "date": date,
+                  "localizedDescription": body,
+                  "downloadURL": url,
+                  "size": size
+              }
+              if app['versions'] and re.match(r'^20\d\d\.', app['versions'][0]['version']):
+                  app['versions'][0] = new_ver   # overwrite previous rolling entry
+              else:
+                  app['versions'].insert(0, new_ver)
+          else:
+              # Versioned release (v2.x, v3.x, …) — insert at front
+              version = tag.lstrip('v')
+              new_ver = {
+                  "version": version,
+                  "buildVersion": version,
+                  "date": date,
+                  "localizedDescription": body,
+                  "downloadURL": url,
+                  "size": size
+              }
+              app['versions'].insert(0, new_ver)
 
           with open('apps.json', 'w') as f:
               json.dump(data, f, indent=2)
               f.write('\n')
 
-          print(f"apps.json patched for {version}")
+          print(f"apps.json patched for {tag}")
           PYEOF
 
       - name: Commit and push
@@ -72,5 +93,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add apps.json
           git diff --cached --quiet && echo "Nothing to commit" && exit 0
-          git commit -m "fix: update apps.json release ${{ github.event.release.tag_name }} size and hash details [skip ci]"
+          git commit -m "chore: update apps.json for ${{ github.event.release.tag_name }} [skip ci]"
           git push
