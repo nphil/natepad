@@ -14,6 +14,22 @@ IPA download: GitHub Releases → "latest" pre-release (overwritten on each main
 - Unsigned IPA: `CODE_SIGNING_ALLOWED=NO` — AltStore signs at sideload time
 - Runner: `macos-15`, auto-selects latest Xcode (currently Xcode 26.3 with iOS 26 SDK)
 - **Always commit + push after any meaningful change** — CI does the rest
+- `CFBundleShortVersionString` and `CFBundleVersion` in `project.yml` are stamped automatically by CI — do not edit them manually
+
+## Versioning (automatic, conventional commits)
+Every push to `main` is analysed and versioned automatically:
+
+| Commit prefix | Version bump | Example |
+|---|---|---|
+| `feat:` | **minor** | `2.1.x → 2.2.0` |
+| `fix:` / `perf:` / `refactor:` | **patch** | `2.1.0 → 2.1.1` |
+| `BREAKING CHANGE` / `feat!:` / `fix!:` | **major** | `2.x.x → 3.0.0` |
+| `chore:` / `docs:` / `ci:` / `style:` / `test:` | none — rolling build only | |
+| free-form message (no prefix) | **patch** | |
+
+A versioned GitHub Release (`v2.1.1`) is created only when the bump is non-none.
+Feather/AltStore `apps.json` is updated automatically after each versioned release.
+A rolling `latest` prerelease is always updated on every push (for quick sideloading).
 
 ## File map
 
