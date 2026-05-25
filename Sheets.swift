@@ -55,6 +55,14 @@ struct GenerateKeySheet: View {
                     .disabled(isWorking || !valid)
                 }
             }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
+                }
+            }
             .interactiveDismissDisabled(isWorking)
             .presentationDetents([.medium, .large])
             .presentationBackground(.regularMaterial)
@@ -184,6 +192,14 @@ struct ImportKeySheet: View {
                         if isWorking { ProgressView() } else { Text("Import") }
                     }
                     .disabled(isWorking || pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
                 }
             }
             .presentationDetents([.large])
@@ -361,6 +377,14 @@ struct PassphraseSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Unlock") { submit() }
                         .disabled(passphrase.isEmpty)
+                }
+            }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
                 }
             }
             .presentationDetents([.fraction(0.35)])

@@ -255,11 +255,13 @@ struct EncryptWorkflow: View {
                     Picker("Sign with", selection: $signerID) {
                         Text("Don't sign").tag(String?.none)
                         ForEach(store.privateKeys) { rec in
-                            Text(rec.label).tag(String?.some(rec.id))
+                            Text(rec.label).lineLimit(1).tag(String?.some(rec.id))
                         }
                     }
                     .pickerStyle(.menu)
                     .tint(theme.current.accentColor)
+                    .lineLimit(1)
+                    .frame(maxWidth: 200)
                 }
             }
 
@@ -339,6 +341,8 @@ struct EncryptWorkflow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
         .background(theme.current.backgroundColor.ignoresSafeArea())
+        .contentShape(Rectangle())
+        .onTapGesture { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
         .navigationTitle("Encrypt")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showResultSheet) {
@@ -498,13 +502,15 @@ struct DecryptWorkflow: View {
                     Text("Decrypt with").font(.callout)
                     Spacer()
                     Picker("Decrypt with", selection: $decryptKeyID) {
-                        Text("Auto-detect (Try all keys)").tag(String?.none)
+                        Text("Auto-detect").tag(String?.none)
                         ForEach(store.privateKeys) { rec in
-                            Text(rec.label).tag(String?.some(rec.id))
+                            Text(rec.label).lineLimit(1).tag(String?.some(rec.id))
                         }
                     }
                     .pickerStyle(.menu)
                     .tint(theme.current.accentColor)
+                    .lineLimit(1)
+                    .frame(maxWidth: 200)
                 }
             }
 
@@ -584,6 +590,8 @@ struct DecryptWorkflow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
         .background(theme.current.backgroundColor.ignoresSafeArea())
+        .contentShape(Rectangle())
+        .onTapGesture { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
         .navigationTitle("Decrypt")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showResultSheet) {
@@ -744,11 +752,13 @@ struct SignWorkflow: View {
                     Picker("Sign with", selection: $signerID) {
                         Text("Select a key").tag(String?.none)
                         ForEach(store.privateKeys) { rec in
-                            Text(rec.label).tag(String?.some(rec.id))
+                            Text(rec.label).lineLimit(1).tag(String?.some(rec.id))
                         }
                     }
                     .pickerStyle(.menu)
                     .tint(theme.current.accentColor)
+                    .lineLimit(1)
+                    .frame(maxWidth: 200)
                 }
             }
 
@@ -828,6 +838,8 @@ struct SignWorkflow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
         .background(theme.current.backgroundColor.ignoresSafeArea())
+        .contentShape(Rectangle())
+        .onTapGesture { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
         .navigationTitle("Sign")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showResultSheet) {
@@ -1036,6 +1048,8 @@ struct VerifyWorkflow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
         .background(theme.current.backgroundColor.ignoresSafeArea())
+        .contentShape(Rectangle())
+        .onTapGesture { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
         .navigationTitle("Verify")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showResultSheet) {

@@ -140,29 +140,24 @@ struct KeyRow: View {
                 .font(.caption2.monospaced())
                 .foregroundStyle(.tertiary)
 
-            HStack {
-                Spacer()
-                HStack(spacing: 8) {
-                    if record.hasPublic {
-                        Button {
-                            exportContext = .init(record: record, kind: .publicKey)
-                        } label: {
-                            Label("Public", systemImage: "square.and.arrow.up")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.glass)
-                        .controlSize(.small)
+            HStack(spacing: 10) {
+                if record.hasPublic {
+                    Button {
+                        exportContext = .init(record: record, kind: .publicKey)
+                    } label: {
+                        Label("Share Public", systemImage: "square.and.arrow.up")
+                            .multilineTextAlignment(.center)
                     }
-                    if record.hasPrivate {
-                        Button {
-                            exportContext = .init(record: record, kind: .privateKey)
-                        } label: {
-                            Label("Private", systemImage: "square.and.arrow.up")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.glass)
-                        .controlSize(.small)
+                    .buttonStyle(.glass)
+                }
+                if record.hasPrivate {
+                    Button {
+                        exportContext = .init(record: record, kind: .privateKey)
+                    } label: {
+                        Label("Share Private", systemImage: "square.and.arrow.up")
+                            .multilineTextAlignment(.center)
                     }
+                    .buttonStyle(.glass)
                 }
                 Spacer()
             }
