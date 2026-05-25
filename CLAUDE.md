@@ -64,8 +64,8 @@ Add a static function to `PGPService.swift`, wire UI in `NotepadView.swift`, add
 Replace `Assets.xcassets/AppIcon.appiconset/AppIcon.png` with a new 1024×1024 PNG.
 
 ### Push and trigger a build
+Always commit and push directly to `main` — no feature branches.
 ```bash
-cd "/Users/nitin/Documents/antigravity/NatePad"
 git add <files>
 git commit -m "..."
 git push origin main
