@@ -132,7 +132,7 @@ fun KeysScreen(isTablet: Boolean, modifier: Modifier = Modifier) {
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
             title = { Text("Delete Key?") },
-            text = { Text("Delete "${rec.displayName}"? This cannot be undone.") },
+            text = { Text("Delete \"${rec.displayName}\"? This cannot be undone.") },
             confirmButton = {
                 Button(
                     onClick = {

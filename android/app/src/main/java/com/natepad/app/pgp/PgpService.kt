@@ -307,28 +307,32 @@ object PgpService {
         }
         val body = bodyOut.toByteArray()
 
+        // Read objects once — a second nextObject() call after a failed cast would
+        // consume and lose the signature list
         val pgpFactory = PGPObjectFactory(inputStream, JcaKeyFingerprintCalculator())
-        val sigList = pgpFactory.nextObject() as? PGPOnePassSignatureList
-            ?: pgpFactory.nextObject() as? org.bouncycastle.openpgp.PGPSignatureList
-            ?: throw PGPException("No signature found in message")
+        var sigList: org.bouncycastle.openpgp.PGPSignatureList? = null
+        var obj = pgpFactory.nextObject()
+        while (obj != null && sigList == null) {
+            when (obj) {
+                is org.bouncycastle.openpgp.PGPSignatureList -> sigList = obj
+                is PGPOnePassSignatureList -> {} // skip; the matching PGPSignatureList follows
+            }
+            if (sigList == null) obj = pgpFactory.nextObject()
+        }
+        val signatures = sigList ?: throw PGPException("No signature found in message")
 
         // Try each provided public key
         for (rec in publicKeys) {
             runCatching {
                 val pubRing = loadPublicRing(rec.armoredPublic)
-                when (sigList) {
-                    is org.bouncycastle.openpgp.PGPSignatureList -> {
-                        for (i in 0 until sigList.size()) {
-                            val sig = sigList[i]
-                            val pubKey = pubRing.getPublicKey(sig.keyID) ?: continue
-                            sig.init(
-                                JcaPGPContentVerifierBuilderProvider().setProvider("BC"), pubKey
-                            )
-                            sig.update(body)
-                            if (sig.verify()) return body.toString(Charsets.UTF_8).trim()
-                        }
-                    }
-                    else -> {}
+                for (i in 0 until signatures.size()) {
+                    val sig = signatures[i]
+                    val pubKey = pubRing.getPublicKey(sig.keyID) ?: continue
+                    sig.init(
+                        JcaPGPContentVerifierBuilderProvider().setProvider("BC"), pubKey
+                    )
+                    sig.update(body)
+                    if (sig.verify()) return body.toString(Charsets.UTF_8).trim()
                 }
             }
         }

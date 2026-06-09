@@ -19,7 +19,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -233,9 +232,8 @@ private fun EncryptControls(
                 onValueChange = {},
                 readOnly = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = recipientDropdownExpanded) },
-                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-                
-            )
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+             )
             ExposedDropdownMenu(expanded = recipientDropdownExpanded, onDismissRequest = { onRecipientsExpand(false) }) {
                 publicKeys.forEach { key ->
                     DropdownMenuItem(
@@ -253,9 +251,8 @@ private fun EncryptControls(
             onValueChange = {},
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = signerDropdownExpanded) },
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-            
-        )
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+         )
         ExposedDropdownMenu(expanded = signerDropdownExpanded, onDismissRequest = { onSignerExpand(false) }) {
             DropdownMenuItem(text = { Text("None") }, onClick = { onSigningKeyChange(null); onSignerExpand(false) })
             privateKeys.forEach { key ->
@@ -421,9 +418,8 @@ private fun SignWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: Mod
                 onValueChange = {},
                 readOnly = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
-                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-                
-            )
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+             )
             ExposedDropdownMenu(expanded = dropdownExpanded, onDismissRequest = { dropdownExpanded = false }) {
                 privateKeys.forEach { key ->
                     DropdownMenuItem(
