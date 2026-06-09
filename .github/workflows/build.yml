@@ -88,18 +88,9 @@ jobs:
         run: |
           VER="${{ steps.semver.outputs.new_version }}"
           BUILD="${{ steps.semver.outputs.build_num }}"
-          python3 - << PYEOF
-import re
-ver   = "$VER"
-build = "$BUILD"
-txt   = open('project.yml').read()
-txt   = re.sub(r'CFBundleShortVersionString:.*',
-               'CFBundleShortVersionString: "' + ver + '"', txt)
-txt   = re.sub(r'CFBundleVersion:.*',
-               'CFBundleVersion: "' + build + '"',  txt)
-open('project.yml', 'w').write(txt)
-print(f"Stamped  version={ver}  build={build}")
-PYEOF
+          sed -i '' "s/CFBundleShortVersionString:.*/CFBundleShortVersionString: \"${VER}\"/" project.yml
+          sed -i '' "s/CFBundleVersion:.*/CFBundleVersion: \"${BUILD}\"/" project.yml
+          echo "Stamped version=${VER} build=${BUILD}"
 
       # ── Build ────────────────────────────────────────────────────────────────
 
