@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NatePad</string>
+
+    <!-- Nav labels -->
+    <string name="nav_notepad">Notepad</string>
+    <string name="nav_keys">Keys</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Modes -->
+    <string name="mode_encrypt">Encrypt</string>
+    <string name="mode_decrypt">Decrypt</string>
+    <string name="mode_sign">Sign</string>
+    <string name="mode_verify">Verify</string>
+
+    <!-- Biometric -->
+    <string name="biometric_prompt_title">Unlock NatePad</string>
+    <string name="biometric_prompt_subtitle">Use biometrics to access your encrypted notes</string>
+    <string name="biometric_prompt_cancel">Cancel</string>
+
+    <!-- Keys screen -->
+    <string name="generate_key">Generate Key</string>
+    <string name="import_key">Import Key</string>
+    <string name="export_public">Export Public</string>
+    <string name="export_private">Export Private</string>
+    <string name="delete_key">Delete Key</string>
+    <string name="no_keys">No keys yet.\nGenerate or import a PGP key to get started.</string>
+
+    <!-- Actions -->
+    <string name="action_encrypt">Encrypt</string>
+    <string name="action_decrypt">Decrypt</string>
+    <string name="action_sign">Sign</string>
+    <string name="action_verify">Verify</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_share">Share</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_paste">Paste</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_done">Done</string>
+    <string name="action_generate">Generate</string>
+    <string name="action_import">Import</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_confirm">Confirm</string>
+
+    <!-- Settings -->
+    <string name="settings_security">Security</string>
+    <string name="settings_biometric_lock">Biometric Lock</string>
+    <string name="settings_biometric_desc">Lock app when it goes to background</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_app_desc">NatePad — PGP notepad for Android</string>
+
+    <!-- Placeholders -->
+    <string name="placeholder_input">Paste or type your message here…</string>
+    <string name="placeholder_output">Output will appear here…</string>
+    <string name="placeholder_armored">Paste PGP armored message here…</string>
+
+    <!-- Key generation -->
+    <string name="key_gen_name">Name</string>
+    <string name="key_gen_email">Email (optional)</string>
+    <string name="key_gen_passphrase">Passphrase</string>
+    <string name="key_gen_confirm_passphrase">Confirm Passphrase</string>
+    <string name="key_gen_title">Generate PGP Key</string>
+    <string name="key_gen_generating">Generating RSA-4096 key…</string>
+
+    <!-- Import -->
+    <string name="key_import_title">Import PGP Key</string>
+    <string name="key_import_paste">Paste Armored Key</string>
+
+    <!-- Passphrase dialog -->
+    <string name="passphrase_title">Enter Passphrase</string>
+    <string name="passphrase_for">Passphrase for %1$s</string>
+
+    <!-- Errors -->
+    <string name="error_no_recipients">Select at least one recipient</string>
+    <string name="error_no_signing_key">Select a signing key</string>
+    <string name="error_no_private_key">No private key available</string>
+    <string name="error_encrypt_failed">Encryption failed</string>
+    <string name="error_decrypt_failed">Decryption failed</string>
+    <string name="error_sign_failed">Signing failed</string>
+    <string name="error_verify_failed">Verification failed</string>
+    <string name="error_import_failed">Import failed — not valid PGP armored data</string>
+    <string name="error_name_required">Name is required</string>
+    <string name="error_passphrase_mismatch">Passphrases do not match</string>
+    <string name="error_passphrase_empty">Passphrase cannot be empty</string>
+</resources>

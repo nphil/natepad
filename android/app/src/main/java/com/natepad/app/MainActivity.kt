@@ -36,11 +36,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val promptInfo by lazy {
+        // DEVICE_CREDENTIAL and setNegativeButtonText are mutually exclusive — use BIOMETRIC_STRONG only
         BiometricPrompt.PromptInfo.Builder()
             .setTitle(getString(R.string.biometric_prompt_title))
             .setSubtitle(getString(R.string.biometric_prompt_subtitle))
-            .setNegativeButtonText(getString(R.string.biometric_prompt_cancel))
-            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
             .setNegativeButtonText(getString(R.string.biometric_prompt_cancel))
             .build()
     }
