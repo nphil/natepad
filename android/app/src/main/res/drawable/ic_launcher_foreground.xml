@@ -12,16 +12,17 @@
             android:strokeColor="#FFFFFFFF"
             android:strokeWidth="4"
             android:pathData="M18,24 L18,18 A12,12 0 0 1 42,18 L42,24" />
-        <!-- Lock body -->
-        <rect
+        <!-- Lock body: rounded rect (10,24)→(50,54) rx=4 -->
+        <path
             android:fillColor="#FFFFFFFF"
-            android:left="10"
-            android:top="24"
-            android:right="50"
-            android:bottom="54"
-            android:rx="4" />
-        <!-- Keyhole -->
-        <circle android:fillColor="#FF6750A4" android:cx="30" android:cy="38" android:r="5" />
-        <path android:fillColor="#FF6750A4" android:pathData="M27,43 L33,43 L31,50 L29,50 Z" />
+            android:pathData="M14,24 L46,24 Q50,24 50,28 L50,50 Q50,54 46,54 L14,54 Q10,54 10,50 L10,28 Q10,24 14,24 Z" />
+        <!-- Keyhole: circle cx=30 cy=38 r=5 -->
+        <path
+            android:fillColor="#FF6750A4"
+            android:pathData="M30,33 A5,5 0 1 0 30,43 A5,5 0 1 0 30,33 Z" />
+        <!-- Keyhole stem -->
+        <path
+            android:fillColor="#FF6750A4"
+            android:pathData="M27,43 L33,43 L31,50 L29,50 Z" />
     </group>
 </vector>
