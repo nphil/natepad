@@ -1,0 +1,8 @@
+#!/bin/sh
+# Gradle wrapper script for local development.
+# In CI the gradle/actions/setup-gradle action is used directly.
+
+# Resolve the script's location
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+
+exec gradle "$@"

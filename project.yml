@@ -33,6 +33,7 @@ targets:
           - "scratch-homebox/**"
           - "web/**"
           - "ATS-Mini/**"
+          - "android/**"
           - ".git/**"
     info:
       path: Info.plist
