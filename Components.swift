@@ -157,6 +157,9 @@ struct SettingsView: View {
     @EnvironmentObject var store: KeyStore
     @EnvironmentObject var theme: ThemeManager
 
+    @State private var showExportBackup = false
+    @State private var showImportBackup = false
+
     var body: some View {
         NavigationStack {
             Form {
@@ -165,6 +168,22 @@ struct SettingsView: View {
                         Label("Require Face ID / Touch ID", systemImage: "faceid")
                     }
                     Text("When on, NatePad locks whenever you leave the app and requires biometric authentication to re-open.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
+                Section("Backup") {
+                    Button {
+                        showExportBackup = true
+                    } label: {
+                        Label("Export Encrypted Backup…", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(store.keys.isEmpty)
+                    Button {
+                        showImportBackup = true
+                    } label: {
+                        Label("Import Backup…", systemImage: "square.and.arrow.down")
+                    }
+                    Text("All keys in one password-encrypted file (AES-256-GCM, PBKDF2 600k iterations). The same file restores on iOS and Android.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
@@ -199,6 +218,12 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) { BrandMark() }
+            }
+            .sheet(isPresented: $showExportBackup) {
+                BackupExportSheet()
+            }
+            .sheet(isPresented: $showImportBackup) {
+                BackupImportSheet()
             }
         }
     }

@@ -57,7 +57,8 @@ Bouncy Castle PGP, EncryptedSharedPreferences key storage, BiometricPrompt lock.
 | `NotepadView.swift` | Encrypt/Decrypt/Sign/Verify UI, per-mode state dict, keyboard dismiss (scrollDismissesKeyboard + Done toolbar + tap-outside) |
 | `KeysView.swift` | Key list, generate/import/export/delete actions |
 | `Sheets.swift` | `GenerateKeySheet`, `ImportKeySheet`, `ExportKeySheet`, `PassphraseSheet`, `PickerDelegate`, `topMostViewController()` |
-| `Components.swift` | `ModePicker`, `StatusBanner`, `RecipientChips`, `GlassCard`, `SettingsView` (theme picker + security toggle) |
+| `Backup.swift` | `BackupService` (password-encrypted backup container), `BackupExportSheet`, `BackupImportSheet` |
+| `Components.swift` | `ModePicker`, `StatusBanner`, `RecipientChips`, `GlassCard`, `SettingsView` (theme picker + security toggle + backup) |
 | `PGPService.swift` | Static enum wrapping ObjectivePGP — parseKeys, generate, encrypt, decrypt, sign, verify |
 | `KeyRecord.swift` | `struct KeyRecord: Identifiable, Codable` — fingerprint, userIDs, armored keys |
 | `KeyStore.swift` | `@MainActor ObservableObject` — Keychain persistence, add/delete keys |
@@ -81,6 +82,13 @@ Bouncy Castle PGP, EncryptedSharedPreferences key storage, BiometricPrompt lock.
   - Self-retaining `PickerDelegate` — `delegate` is `weak`; delegate sets `strongSelf = self` in init, releases in callbacks.
   - Do NOT use SwiftUI `.fileImporter` (drops callback inside sheets) or `.background { UIViewControllerRepresentable }` (host VC not in proper hierarchy).
 - Keys stored in iOS Keychain with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
+- **Encrypted backups (cross-platform)**: `Backup.swift` (iOS) and `data/BackupService.kt` (Android) read/write
+  the same container: JSON `{format:"natepad-backup", version:1, kdf, iterations, salt, nonce, ciphertext}`,
+  PBKDF2-HMAC-SHA256 600k iterations → AES-256-GCM (tag appended to ciphertext — javax.crypto and CryptoKit
+  ciphertext+tag layouts match). Payload: `{keys:[{fingerprint, userIds, armoredPublic?, armoredPrivate?}]}`.
+  Changing the format requires bumping `version` on BOTH platforms. Android shares via FileProvider
+  (`cacheDir/backups`, authority `${applicationId}.fileprovider`); iOS via `UIActivityViewController` from
+  `topMostViewController()`.
 
 ## Common tasks
 
