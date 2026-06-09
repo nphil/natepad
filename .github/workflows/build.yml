@@ -185,15 +185,15 @@ jobs:
           fi
           [ -z "${CHANGELOG:-}" ] && CHANGELOG="- Various improvements"
 
-          # Write release notes via Python (safe with special chars in commit msgs)
-          export CHANGELOG
-          python3 -c "
-import os
-ver  = os.environ['NEW_VER']
-log  = os.environ['CHANGELOG']
-body = \"## What's new in \" + ver + \"\n\n\" + log + \"\n\n---\nUnsigned IPA — sideload with AltStore or Feather.\n\"
-open('/tmp/release-notes.md', 'w').write(body)
-"
+          # Write release notes in bash (avoids unindented Python body breaking YAML block scalar)
+          {
+            echo "## What's new in ${NEW_VER}"
+            echo ""
+            echo "${CHANGELOG}"
+            echo ""
+            echo "---"
+            echo "Unsigned IPA — sideload with AltStore or Feather."
+          } > /tmp/release-notes.md
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "$NEW_TAG"
