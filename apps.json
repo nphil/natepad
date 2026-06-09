@@ -11,16 +11,80 @@
       "bundleIdentifier": "com.natepad.app",
       "developerName": "nphil",
       "subtitle": "PGP notepad for iPhone",
-      "localizedDescription": "Encrypt, decrypt, sign, and verify PGP messages. Manage your OpenPGP keys — generate, import, and export. Private keys are stored in the iOS Keychain.",
+      "localizedDescription": "Encrypt, decrypt, sign, and verify PGP messages. Manage your OpenPGP keys \u2014 generate, import, and export. Private keys are stored in the iOS Keychain.",
       "iconURL": "https://raw.githubusercontent.com/nphil/natepad/main/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
       "tintColor": "#5856D6",
       "category": "utilities",
       "versions": [
         {
+          "version": "2.7.0",
+          "buildVersion": "2.7.0",
+          "date": "2026-06-09T22:10:19Z",
+          "localizedDescription": "## What's new in 2.7.0\n\n- feat: encrypted backup export/import on iOS and Android",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.7.0/Natepad.ipa",
+          "size": 1035928
+        },
+        {
+          "version": "2.6.0",
+          "buildVersion": "2.6.0",
+          "date": "2026-06-09T21:45:01Z",
+          "localizedDescription": "## What's new in 2.6.0\n\n- feat: full Material You UX overhaul + fix tablet navigation",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.6.0/Natepad.ipa",
+          "size": 1000588
+        },
+        {
+          "version": "2.5.0",
+          "buildVersion": "2.5.0",
+          "date": "2026-06-09T21:24:58Z",
+          "localizedDescription": "## What's new in 2.5.0\n\n- feat: center launcher icon + collapsible sidebar (Material 3)",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.5.0/Natepad.ipa",
+          "size": 1000588
+        },
+        {
+          "version": "2.4.1",
+          "buildVersion": "2.4.1",
+          "date": "2026-06-09T21:14:07Z",
+          "localizedDescription": "## What's new in 2.4.1\n\n- fix: replace SVG rect/circle with path in ic_launcher_foreground",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.4.1/Natepad.ipa",
+          "size": 1000589
+        },
+        {
+          "version": "2.4.0",
+          "buildVersion": "2.4.0",
+          "date": "2026-06-09T21:03:38Z",
+          "localizedDescription": "## What's new in 2.4.0\n\n- feat: stable APK signing for Obtainium updates + attach APK to versioned releases",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.4.0/Natepad.ipa",
+          "size": 1000589
+        },
+        {
+          "version": "2.3.0",
+          "buildVersion": "2.3.0",
+          "date": "2026-06-09T20:59:08Z",
+          "localizedDescription": "## What's new in 2.3.0\n\n- fix: Android compile errors\n- feat: add Android app UI",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.3.0/Natepad.ipa",
+          "size": 1000589
+        },
+        {
+          "version": "2.2.1",
+          "buildVersion": "2.2.1",
+          "date": "2026-06-09T20:52:56Z",
+          "localizedDescription": "## What's new in 2.2.1\n\n- fix: add gradle.properties and publish APK to releases",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.2.1/Natepad.ipa",
+          "size": 1000589
+        },
+        {
+          "version": "2.2.0",
+          "buildVersion": "2.2.0",
+          "date": "2026-06-09T20:45:25Z",
+          "localizedDescription": "## What's new in 2.2.0\n\n- feat: add Android app scaffold\n- Improve keyboard dismissal, key share buttons, and picker overflow\n- feat: hosted Web App + auto-deploy to GitHub Pages",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.2.0/Natepad.ipa",
+          "size": 1000588
+        },
+        {
           "version": "2.1",
           "buildVersion": "2.1",
           "date": "2026-05-24T15:43:16Z",
-          "localizedDescription": "## What's new in 2.1\n\n**NatePad Web App** — a fully offline web app that mirrors the iOS app. Download `Natepad-Web.zip` from the release, extract, and open `index.html` in any modern browser.\n\n**All 31 themes** from the iOS app are available in the web version.\n\n**Full PGP operations** — Encrypt, Decrypt, Sign, and Verify messages using OpenPGP.js v5.11.2.\n\n**Key Management** — Generate ECC (Curve25519) or RSA-4096 key pairs, import/export armored keys.\n\n## Install iOS app via Feather / AltStore\n1. Download `Natepad.ipa`\n2. Open Feather or AltStore → **+** → choose the IPA\n\n> Or add the repo source to Feather for automatic updates:\n> `https://raw.githubusercontent.com/nphil/natepad/main/apps.json`",
+          "localizedDescription": "## What's new in 2.1\n\n**NatePad Web App** \u2014 a fully offline web app that mirrors the iOS app. Download `Natepad-Web.zip` from the release, extract, and open `index.html` in any modern browser.\n\n**All 31 themes** from the iOS app are available in the web version.\n\n**Full PGP operations** \u2014 Encrypt, Decrypt, Sign, and Verify messages using OpenPGP.js v5.11.2.\n\n**Key Management** \u2014 Generate ECC (Curve25519) or RSA-4096 key pairs, import/export armored keys.\n\n## Install iOS app via Feather / AltStore\n1. Download `Natepad.ipa`\n2. Open Feather or AltStore \u2192 **+** \u2192 choose the IPA\n\n> Or add the repo source to Feather for automatic updates:\n> `https://raw.githubusercontent.com/nphil/natepad/main/apps.json`",
           "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.1/Natepad.ipa",
           "size": 997093
         },
@@ -28,7 +92,7 @@
           "version": "2.0",
           "buildVersion": "2.0",
           "date": "2026-05-24T14:01:04Z",
-          "localizedDescription": "Unsigned IPA — sideload with AltStore. Built from `288c268` on 2026-05-24 14:01 UTC",
+          "localizedDescription": "Unsigned IPA \u2014 sideload with AltStore. Built from `288c268` on 2026-05-24 14:01 UTC",
           "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.0/Natepad.ipa",
           "size": 1012280
         },
@@ -36,7 +100,7 @@
           "version": "1.1",
           "buildVersion": "1.1",
           "date": "2026-04-26T21:53:19Z",
-          "localizedDescription": "## What's new in 1.1\n\n**Decrypt key selector** — when you have multiple private keys, Decrypt mode now shows a picker so you choose exactly which key to use. No more entering passphrases for keys that don't match. Default is Auto-detect (tries all keys), which still works for single-key setups.\n\n**Richer theme backgrounds** — three blurred orbs instead of two, with a dark accent-tinted base replacing pure black. Roughly half as much black showing through.\n\n**Accent tinting throughout** — GlassCards, text areas, borders, recipient chips, and section titles now pick up the active theme colour instead of plain grey.\n\n**Bug fix** — multiple private keys no longer cause repeated passphrase prompts during decrypt.\n\n## Install via Feather / AltStore\n1. Download `Natepad.ipa`\n2. Open Feather or AltStore → **+** → choose the IPA\n\n> Or add the repo source to Feather for automatic updates:\n> `https://raw.githubusercontent.com/nphil/natepad/main/apps.json`",
+          "localizedDescription": "## What's new in 1.1\n\n**Decrypt key selector** \u2014 when you have multiple private keys, Decrypt mode now shows a picker so you choose exactly which key to use. No more entering passphrases for keys that don't match. Default is Auto-detect (tries all keys), which still works for single-key setups.\n\n**Richer theme backgrounds** \u2014 three blurred orbs instead of two, with a dark accent-tinted base replacing pure black. Roughly half as much black showing through.\n\n**Accent tinting throughout** \u2014 GlassCards, text areas, borders, recipient chips, and section titles now pick up the active theme colour instead of plain grey.\n\n**Bug fix** \u2014 multiple private keys no longer cause repeated passphrase prompts during decrypt.\n\n## Install via Feather / AltStore\n1. Download `Natepad.ipa`\n2. Open Feather or AltStore \u2192 **+** \u2192 choose the IPA\n\n> Or add the repo source to Feather for automatic updates:\n> `https://raw.githubusercontent.com/nphil/natepad/main/apps.json`",
           "downloadURL": "https://github.com/nphil/natepad/releases/download/v1.1/Natepad.ipa",
           "size": 976101
         },
@@ -44,7 +108,7 @@
           "version": "1.0",
           "buildVersion": "1.0",
           "date": "2026-04-26T21:26:39Z",
-          "localizedDescription": "Initial release.\n\n• Encrypt / Decrypt / Sign / Verify\n• Key management (generate RSA-4096, import/export .asc)\n• 5 themes with blurred gradient backgrounds\n• Face ID / Touch ID lock\n• Decrypt key selector for multi-key setups",
+          "localizedDescription": "Initial release.\n\n\u2022 Encrypt / Decrypt / Sign / Verify\n\u2022 Key management (generate RSA-4096, import/export .asc)\n\u2022 5 themes with blurred gradient backgrounds\n\u2022 Face ID / Touch ID lock\n\u2022 Decrypt key selector for multi-key setups",
           "downloadURL": "https://github.com/nphil/natepad/releases/download/v1.0/Natepad.ipa",
           "size": 968918
         }

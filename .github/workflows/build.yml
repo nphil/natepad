@@ -209,6 +209,60 @@ jobs:
             --title "$NEW_TAG" \
             --notes-file /tmp/release-notes.md
 
+      # Releases created with GITHUB_TOKEN do NOT fire `release: published`
+      # events (GitHub anti-recursion rule), so a separate event-triggered
+      # workflow can never keep apps.json in sync. Update it right here instead.
+      # The Python heredoc body stays at the block-scalar indentation level —
+      # never put heredoc content at column 0 inside `run: |` (breaks YAML).
+      - name: Update Feather repo (apps.json)
+        if: steps.semver.outputs.new_tag != ''
+        env:
+          NEW_VER: ${{ steps.semver.outputs.new_version }}
+          NEW_TAG: ${{ steps.semver.outputs.new_tag }}
+        run: |
+          python3 - "$NEW_VER" "$NEW_TAG" << 'PYEOF'
+          import json, sys, os, datetime
+
+          version, tag = sys.argv[1], sys.argv[2]
+          repo = os.environ.get("GITHUB_REPOSITORY", "nphil/natepad")
+          with open("/tmp/release-notes.md") as f:
+              body = f.read()
+
+          with open("apps.json") as f:
+              data = json.load(f)
+
+          app = data["apps"][0]
+          if any(v["version"] == version for v in app["versions"]):
+              print(f"{version} already present in apps.json")
+              sys.exit(0)
+
+          app["versions"].insert(0, {
+              "version": version,
+              "buildVersion": version,
+              "date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "localizedDescription": body,
+              "downloadURL": f"https://github.com/{repo}/releases/download/{tag}/Natepad.ipa",
+              "size": os.path.getsize("Natepad.ipa"),
+          })
+
+          with open("apps.json", "w") as f:
+              json.dump(data, f, indent=2)
+              f.write("\n")
+          print(f"apps.json updated for {version}")
+          PYEOF
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps.json
+          if git diff --cached --quiet; then
+            echo "apps.json unchanged"
+          else
+            git commit -m "chore: update apps.json for ${NEW_TAG} [skip ci]"
+            # --autostash: project.yml carries uncommitted CI version stamps
+            git pull --rebase --autostash origin main
+            git push origin HEAD:main
+          fi
+
       - name: Delete previous "latest" prerelease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
