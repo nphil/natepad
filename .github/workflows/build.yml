@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ios-build
+  cancel-in-progress: false
+
 jobs:
   build:
     name: Build unsigned IPA

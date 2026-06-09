@@ -13,8 +13,9 @@ android {
         applicationId = "com.natepad.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        // CI passes -PversionCode / -PversionName; defaults are for local builds
+        versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 1
+        versionName = (project.findProperty("versionName") as String?) ?: "1.0.0-dev"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -22,10 +23,25 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            // Committed keystore: keeps the APK signature identical across CI runs so
+            // Obtainium/sideload updates install without signature-mismatch errors.
+            // Update-continuity only — this app is distributed via our own GitHub Releases.
+            storeFile = file("natepad-release.keystore")
+            storePassword = "natepad-release-2026"
+            keyAlias = "natepad"
+            keyPassword = "natepad-release-2026"
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
+            // Minification disabled: Bouncy Castle + kotlinx.serialization rely on
+            // reflection; an over-aggressive shrink would break PGP at runtime
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

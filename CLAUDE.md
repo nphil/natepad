@@ -31,6 +31,23 @@ A versioned GitHub Release (`v2.1.1`) is created only when the bump is non-none.
 Feather/AltStore `apps.json` is updated automatically after each versioned release.
 A rolling `latest` prerelease is always updated on every push (for quick sideloading).
 
+## Android app (`android/`)
+Jetpack Compose + Material You, tablet-adaptive (NavigationBar/Rail/PermanentDrawer).
+Bouncy Castle PGP, EncryptedSharedPreferences key storage, BiometricPrompt lock.
+
+- CI: `.github/workflows/build-android.yml` — builds **signed release APK** on every push to `main`
+- Both workflows run the same semver logic, so APK and IPA carry the same version
+- The Android workflow waits for the iOS workflow to create the `vX.Y.Z` release, then attaches the APK
+- Rolling `android-latest` prerelease refreshed on every push
+- **Signing**: `android/app/natepad-release.keystore` (PKCS12, alias `natepad`, password in `build.gradle.kts`)
+  is **committed on purpose** — keeps the APK signature identical across CI runs so
+  Obtainium/sideload updates install without signature-mismatch errors. Never delete or regenerate it:
+  a new keystore breaks updates for every existing install (users would have to uninstall/reinstall).
+- Obtainium: add source URL `https://github.com/nphil/natepad` — it tracks `vX.Y.Z` releases and
+  auto-picks the single `.apk` asset
+- `versionCode` = commit count, `versionName` = semver — both injected by CI via `-P` flags;
+  Compose BOM 2024.06.00 ships material3 1.2.1 — **do not use** material3 1.3+ APIs (e.g. `MenuAnchorType`)
+
 ## File map
 
 | File | Purpose |
