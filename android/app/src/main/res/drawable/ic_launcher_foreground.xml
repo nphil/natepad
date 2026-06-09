@@ -4,8 +4,11 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Lock icon centered in the safe zone (36dp inset on all sides) -->
-    <group android:translateX="27" android:translateY="27">
+    <!--
+        Lock bounding box in local coords: x[10..50] y[18..54] → center (30,36).
+        Translate to viewport center (54,54): translateX=24 translateY=18.
+    -->
+    <group android:translateX="24" android:translateY="18">
         <!-- Shackle -->
         <path
             android:fillColor="#00000000"
@@ -16,7 +19,7 @@
         <path
             android:fillColor="#FFFFFFFF"
             android:pathData="M14,24 L46,24 Q50,24 50,28 L50,50 Q50,54 46,54 L14,54 Q10,54 10,50 L10,28 Q10,24 14,24 Z" />
-        <!-- Keyhole: circle cx=30 cy=38 r=5 -->
+        <!-- Keyhole: circle cx=30 cy=38 r=5 (dual-arc) -->
         <path
             android:fillColor="#FF6750A4"
             android:pathData="M30,33 A5,5 0 1 0 30,43 A5,5 0 1 0 30,33 Z" />
