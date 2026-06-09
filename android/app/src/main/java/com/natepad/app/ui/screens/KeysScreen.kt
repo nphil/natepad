@@ -4,12 +4,14 @@ import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,22 +19,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -44,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.natepad.app.data.KeyRecord
@@ -148,6 +153,7 @@ fun KeysScreen(isTablet: Boolean, modifier: Modifier = Modifier) {
     }
 
     if (isTablet && selectedKey != null) {
+        // ── Tablet split view ─────────────────────────────────────────────────
         Row(modifier = modifier.fillMaxSize()) {
             KeyList(
                 keys = keys,
@@ -157,8 +163,9 @@ fun KeysScreen(isTablet: Boolean, modifier: Modifier = Modifier) {
                 onDelete = { deleteTarget = it },
                 onGenerate = { showGenerateDialog = true },
                 onImport = { showImportDialog = true },
-                modifier = Modifier.width(360.dp)
+                modifier = Modifier.width(320.dp)
             )
+            VerticalDivider()
             KeyDetail(
                 record = selectedKey!!,
                 onShare = { armored, name -> shareText(context, armored, name) },
@@ -167,42 +174,83 @@ fun KeysScreen(isTablet: Boolean, modifier: Modifier = Modifier) {
             )
         }
     } else {
-        Scaffold(
-            floatingActionButton = {
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FloatingActionButton(onClick = { showImportDialog = true }, containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                        Icon(Icons.Default.Add, contentDescription = "Import")
-                    }
-                    FloatingActionButton(onClick = { showGenerateDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Generate")
-                    }
+        // ── Single column view (phone or tablet with no selection) ────────────
+        Column(modifier = modifier.fillMaxSize()) {
+            // Action buttons
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { showGenerateDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Generate")
+                }
+                FilledTonalButton(
+                    onClick = { showImportDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Import")
                 }
             }
-        ) { innerPadding ->
-            Column(modifier = modifier.padding(innerPadding).padding(horizontal = 16.dp)) {
-                statusMsg?.let { (msg, type) ->
-                    Spacer(Modifier.height(8.dp))
-                    StatusCard(msg, type)
-                    Spacer(Modifier.height(8.dp))
-                }
-                if (keys.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+
+            statusMsg?.let { (msg, type) ->
+                StatusCard(
+                    message = msg, type = type,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+
+            if (keys.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Key,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                        Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "No keys yet.\nGenerate or import a PGP key to get started.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "No keys yet",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Generate or import a PGP key to get started",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
                         )
                     }
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(keys, key = { it.id }) { rec ->
-                            KeyCard(
-                                record = rec,
-                                onShare = { armored, name -> shareText(context, armored, name) },
-                                onDelete = { deleteTarget = rec }
-                            )
-                        }
+                }
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(keys, key = { it.id }) { rec ->
+                        KeyCard(
+                            record = rec,
+                            isSelected = isTablet && selectedKey?.id == rec.id,
+                            onSelect = { if (isTablet) selectedKey = rec },
+                            onShare = { armored, name -> shareText(context, armored, name) },
+                            onDelete = { deleteTarget = rec }
+                        )
                     }
+                    item { Spacer(Modifier.height(8.dp)) }
                 }
             }
         }
@@ -226,19 +274,29 @@ private fun KeyList(
             OutlinedButton(onClick = onImport, modifier = Modifier.weight(1f)) { Text("Import") }
         }
         Spacer(Modifier.height(8.dp))
-        statusMsg?.let { (msg, type) -> StatusCard(msg, type) ; Spacer(Modifier.height(8.dp)) }
+        statusMsg?.let { (msg, type) -> StatusCard(msg, type); Spacer(Modifier.height(8.dp)) }
         if (keys.isEmpty()) {
-            Text("No keys yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Outlined.Key, contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("No keys yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(keys, key = { it.id }) { rec ->
                     Card(
                         onClick = { onSelect(rec) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
                             containerColor = if (selectedKey?.id == rec.id)
-                                MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surface
+                                MaterialTheme.colorScheme.secondaryContainer
+                            else MaterialTheme.colorScheme.surfaceContainerLow
                         )
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
@@ -263,8 +321,8 @@ private fun KeyDetail(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.padding(16.dp)) {
-        Text(record.displayName, style = MaterialTheme.typography.headlineMedium)
+    Column(modifier = modifier.padding(20.dp)) {
+        Text(record.displayName, style = MaterialTheme.typography.headlineSmall)
         if (record.displayEmail.isNotEmpty()) {
             Text(record.displayEmail, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -276,19 +334,19 @@ private fun KeyDetail(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (record.hasPublic) {
                 OutlinedButton(onClick = { onShare(record.armoredPublic, "${record.displayName}_pub.asc") }) {
-                    Icon(Icons.Default.Share, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
                     Text("Share Public")
                 }
             }
             if (record.hasPrivate) {
                 OutlinedButton(onClick = { onShare(record.armoredPrivate, "${record.displayName}_priv.asc") }) {
-                    Icon(Icons.Default.Share, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
                     Text("Share Private")
                 }
             }
@@ -296,12 +354,12 @@ private fun KeyDetail(
                 onClick = onDelete,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
             ) {
-                Icon(Icons.Default.Delete, contentDescription = null)
-                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
                 Text("Delete")
             }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
         SectionLabel("Public Key")
         PgpTextField(value = record.armoredPublic, onValueChange = {}, label = "", readOnly = true, minLines = 6)
     }
@@ -311,12 +369,23 @@ private fun KeyDetail(
 @Composable
 private fun KeyCard(
     record: KeyRecord,
+    isSelected: Boolean,
+    onSelect: () -> Unit,
     onShare: (String, String) -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
+    ElevatedCard(
+        onClick = onSelect,
+        modifier = modifier.fillMaxWidth(),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.secondaryContainer
+            else MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(record.displayName, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -328,27 +397,34 @@ private fun KeyCard(
                     Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                 }
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
             KeyBadge(hasPublic = record.hasPublic, hasPrivate = record.hasPrivate)
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = record.shortId,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (record.hasPublic) {
-                    OutlinedButton(onClick = { onShare(record.armoredPublic, "${record.displayName}_pub.asc") }) {
-                        Icon(Icons.Default.Share, contentDescription = null)
+                    OutlinedButton(
+                        onClick = { onShare(record.armoredPublic, "${record.displayName}_pub.asc") },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Share Public")
+                        Text("Share Public", style = MaterialTheme.typography.labelMedium)
                     }
                 }
                 if (record.hasPrivate) {
-                    OutlinedButton(onClick = { onShare(record.armoredPrivate, "${record.displayName}_priv.asc") }) {
-                        Icon(Icons.Default.Share, contentDescription = null)
+                    OutlinedButton(
+                        onClick = { onShare(record.armoredPrivate, "${record.displayName}_priv.asc") },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Share Private")
+                        Text("Share Private", style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }

@@ -22,6 +22,8 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,7 +43,6 @@ import androidx.compose.ui.unit.dp
 import com.natepad.app.data.KeyRecord
 import com.natepad.app.data.KeyRepository
 import com.natepad.app.pgp.PgpService
-import com.natepad.app.ui.components.ModeFilterChip
 import com.natepad.app.ui.components.PgpTextField
 import com.natepad.app.ui.components.RecipientChip
 import com.natepad.app.ui.components.SectionLabel
@@ -58,6 +59,7 @@ enum class CryptoMode(val label: String) {
     VERIFY("Verify")
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CryptoScreen(
     initialMode: CryptoMode = CryptoMode.ENCRYPT,
@@ -69,19 +71,15 @@ fun CryptoScreen(
     val keys by repo.keys.collectAsState()
 
     var selectedMode by remember { mutableStateOf(initialMode) }
+    val selectedIndex = CryptoMode.entries.indexOf(selectedMode)
 
     Column(modifier = modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            CryptoMode.entries.forEach { mode ->
-                ModeFilterChip(
-                    label = mode.label,
-                    selected = selectedMode == mode,
-                    onClick = { selectedMode = mode }
+        PrimaryTabRow(selectedTabIndex = selectedIndex) {
+            CryptoMode.entries.forEachIndexed { index, mode ->
+                Tab(
+                    selected = selectedIndex == index,
+                    onClick = { selectedMode = mode },
+                    text = { Text(mode.label) }
                 )
             }
         }
@@ -138,7 +136,7 @@ private fun EncryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: 
 
     if (isTablet) {
         Row(
-            modifier = modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            modifier = modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Column(
@@ -174,7 +172,7 @@ private fun EncryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: 
         }
     } else {
         Column(
-            modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+            modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp).padding(top = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             EncryptControls(
@@ -307,16 +305,14 @@ private fun DecryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: 
             status = null
             runCatching {
                 withContext(Dispatchers.Default) {
-                    // Try with empty passphrase first; if it fails, the dialog will prompt
                     PgpService.decrypt(input, privateKeys) { null }
                 }
             }.onSuccess { result ->
                 output = result
                 status = "Decrypted successfully" to StatusType.SUCCESS
-            }.onFailure { e ->
-                // Show passphrase dialog for the first available private key
+            }.onFailure {
                 if (privateKeys.isNotEmpty()) passphraseDialogKey = privateKeys.first()
-                else status = (e.message ?: "Decryption failed") to StatusType.ERROR
+                else status = (it.message ?: "Decryption failed") to StatusType.ERROR
             }
         }
     }
@@ -331,7 +327,7 @@ private fun DecryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: 
 
     if (isTablet) {
         Row(
-            modifier = modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            modifier = modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
@@ -360,7 +356,7 @@ private fun DecryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: 
         }
     } else {
         Column(
-            modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+            modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp).padding(top = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             PgpTextField(value = input, onValueChange = { input = it }, label = "Encrypted Input")
@@ -440,7 +436,7 @@ private fun SignWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: Mod
 
     if (isTablet) {
         Row(
-            modifier = modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            modifier = modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Column(
@@ -469,7 +465,7 @@ private fun SignWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: Mod
         }
     } else {
         Column(
-            modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+            modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp).padding(top = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             controls()
@@ -517,7 +513,7 @@ private fun VerifyWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: M
 
     if (isTablet) {
         Row(
-            modifier = modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            modifier = modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
@@ -543,7 +539,7 @@ private fun VerifyWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: M
         }
     } else {
         Column(
-            modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+            modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp).padding(top = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             PgpTextField(value = input, onValueChange = { input = it }, label = "Signed Message")

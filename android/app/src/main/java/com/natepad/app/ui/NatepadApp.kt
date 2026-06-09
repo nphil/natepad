@@ -1,6 +1,5 @@
 package com.natepad.app.ui
 
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -21,11 +20,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -78,14 +77,20 @@ fun NatepadApp(
     var cryptoMode by rememberSaveable { mutableStateOf(CryptoMode.ENCRYPT) }
     var showCrypto by rememberSaveable { mutableStateOf(false) }
 
-    // Drawer state — always instantiated so Compose slot count stays stable across
-    // configuration changes; only used in the isExpanded branch.
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Open)
+    // Hoist all drawer state so Compose slot count stays stable across config changes.
+    // expandedDrawerState: starts open (sidebar always visible on large screens initially)
+    // tabletDrawerState: starts closed (hamburger opens it on medium screens)
+    val expandedDrawerState = rememberDrawerState(DrawerValue.Open)
+    val tabletDrawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     val onNavSelect: (NavDestination) -> Unit = { dest ->
         currentDest = dest
         if (dest != NavDestination.HOME) showCrypto = false
+        // Close the modal drawer when navigating on tablet-size screens
+        if (!isExpanded && tabletDrawerState.isOpen) {
+            scope.launch { tabletDrawerState.close() }
+        }
     }
 
     val topBarTitle = when {
@@ -100,10 +105,7 @@ fun NatepadApp(
             }
             currentDest == NavDestination.HOME -> {
                 HomeScreen(
-                    onModeSelected = { mode ->
-                        cryptoMode = mode
-                        showCrypto = true
-                    },
+                    onModeSelected = { mode -> cryptoMode = mode; showCrypto = true },
                     onNavigateToKeys = { currentDest = NavDestination.KEYS },
                     isTablet = isTablet,
                     modifier = mod
@@ -112,38 +114,18 @@ fun NatepadApp(
             currentDest == NavDestination.KEYS -> {
                 KeysScreen(isTablet = isTablet, modifier = mod)
             }
-            else -> {
-                SettingsScreen(modifier = mod)
-            }
+            else -> SettingsScreen(modifier = mod)
         }
     }
 
     when {
-        // ── Expanded (≥840dp): dismissible drawer that slides in/out ──────────
+        // ── Expanded (≥840dp): dismissible drawer that slides alongside content ──
         isExpanded -> {
             DismissibleNavigationDrawer(
-                drawerState = drawerState,
+                drawerState = expandedDrawerState,
                 drawerContent = {
                     DismissibleDrawerSheet {
-                        Text(
-                            text = "NatePad",
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp)
-                        )
-                        NavDestination.entries.forEach { dest ->
-                            NavigationDrawerItem(
-                                icon = {
-                                    Icon(
-                                        imageVector = if (currentDest == dest) dest.iconSelected else dest.icon,
-                                        contentDescription = dest.label
-                                    )
-                                },
-                                label = { Text(dest.label) },
-                                selected = currentDest == dest,
-                                onClick = { onNavSelect(dest) },
-                                modifier = Modifier.padding(horizontal = 12.dp)
-                            )
-                        }
+                        DrawerContent(currentDest = currentDest, onNavSelect = onNavSelect)
                     }
                 }
             ) {
@@ -154,14 +136,11 @@ fun NatepadApp(
                             navigationIcon = {
                                 IconButton(onClick = {
                                     scope.launch {
-                                        if (drawerState.isOpen) drawerState.close()
-                                        else drawerState.open()
+                                        if (expandedDrawerState.isOpen) expandedDrawerState.close()
+                                        else expandedDrawerState.open()
                                     }
                                 }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Menu,
-                                        contentDescription = "Toggle sidebar"
-                                    )
+                                    Icon(Icons.Default.Menu, contentDescription = "Toggle sidebar")
                                 }
                             },
                             colors = TopAppBarDefaults.topAppBarColors(
@@ -175,34 +154,30 @@ fun NatepadApp(
             }
         }
 
-        // ── Tablet (600–839dp): compact navigation rail ────────────────────────
+        // ── Tablet (600–839dp): modal drawer opened via hamburger ─────────────
         isTablet -> {
-            Row(modifier = Modifier.fillMaxSize()) {
-                NavigationRail {
-                    NavDestination.entries.forEach { dest ->
-                        NavigationRailItem(
-                            icon = {
-                                Icon(
-                                    imageVector = if (currentDest == dest) dest.iconSelected else dest.icon,
-                                    contentDescription = dest.label
-                                )
-                            },
-                            label = { Text(dest.label) },
-                            selected = currentDest == dest,
-                            onClick = { onNavSelect(dest) }
-                        )
+            ModalNavigationDrawer(
+                drawerState = tabletDrawerState,
+                drawerContent = {
+                    ModalDrawerSheet {
+                        DrawerContent(currentDest = currentDest, onNavSelect = onNavSelect)
                     }
                 }
+            ) {
                 Scaffold(
                     topBar = {
                         TopAppBar(
                             title = { Text(topBarTitle) },
+                            navigationIcon = {
+                                IconButton(onClick = { scope.launch { tabletDrawerState.open() } }) {
+                                    Icon(Icons.Default.Menu, contentDescription = "Open menu")
+                                }
+                            },
                             colors = TopAppBarDefaults.topAppBarColors(
                                 containerColor = MaterialTheme.colorScheme.surface
                             )
                         )
-                    },
-                    modifier = Modifier.weight(1f)
+                    }
                 ) { innerPadding ->
                     screenContent(Modifier.padding(innerPadding).fillMaxSize())
                 }
@@ -241,6 +216,39 @@ fun NatepadApp(
                 screenContent(Modifier.padding(innerPadding).fillMaxSize())
             }
         }
+    }
+}
+
+@Composable
+private fun DrawerContent(
+    currentDest: NavDestination,
+    onNavSelect: (NavDestination) -> Unit
+) {
+    Text(
+        text = "NatePad",
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 28.dp, top = 24.dp, end = 28.dp, bottom = 4.dp)
+    )
+    Text(
+        text = "PGP Notepad",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 28.dp, bottom = 20.dp)
+    )
+    NavDestination.entries.forEach { dest ->
+        NavigationDrawerItem(
+            icon = {
+                Icon(
+                    imageVector = if (currentDest == dest) dest.iconSelected else dest.icon,
+                    contentDescription = dest.label
+                )
+            },
+            label = { Text(dest.label) },
+            selected = currentDest == dest,
+            onClick = { onNavSelect(dest) },
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+        )
     }
 }
 
