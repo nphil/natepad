@@ -35,9 +35,31 @@ jobs:
         working-directory: android
         run: gradle assembleDebug
 
+      - name: Rename APK
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          mv android/app/build/outputs/apk/debug/app-debug.apk \
+             "NatePad-android-${SHORT_SHA}.apk"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: natepad-android-debug
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: NatePad-android-*.apk
           retention-days: 30
+
+      - name: Delete previous android-latest prerelease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release delete android-latest --yes --cleanup-tag 2>/dev/null || true
+
+      - name: Publish android-latest prerelease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          gh release create "android-latest" \
+            NatePad-android-*.apk \
+            --title "Android latest (debug)" \
+            --notes "Debug APK — install with 'Allow unknown sources' enabled. Built from \`${SHORT_SHA}\` on $(date -u +'%Y-%m-%d %H:%M UTC')" \
+            --prerelease
