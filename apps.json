@@ -17,6 +17,14 @@
       "category": "utilities",
       "versions": [
         {
+          "version": "2.7.1",
+          "buildVersion": "2.7.1",
+          "date": "2026-06-12T02:49:56Z",
+          "localizedDescription": "## What's new in 2.7.1\n\n- fix: biometric lock honors Settings toggle + keyboard UX + lock screen redesign\n\n---\nUnsigned IPA \u2014 sideload with AltStore or Feather.\n",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.7.1/Natepad.ipa",
+          "size": 1036452
+        },
+        {
           "version": "2.7.0",
           "buildVersion": "2.7.0",
           "date": "2026-06-09T22:10:19Z",
