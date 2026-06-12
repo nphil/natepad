@@ -5,27 +5,30 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <!--
-        Lock bounding box in local coords: x[10..50] y[18..54] → center (30,36).
-        Translate to viewport center (54,54): translateX=24 translateY=18.
+        Safe zone: 18..90 (72×72 centred). Lock fills ~80% of safe zone.
+        Design box: 54 wide × 68 tall.  Local centre: (27, 34).
+        translateX = 54−27 = 27,  translateY = 54−34 = 20  (slight lift for visual weight).
+        Final bbox: x[27..81]  y[20..88]  — entirely inside safe zone.
     -->
-    <group android:translateX="24" android:translateY="18">
-        <!-- Shackle -->
+    <group android:translateX="27" android:translateY="20">
+        <!-- Shackle: arch top at y=0, posts connect to body at y=26 -->
         <path
             android:fillColor="#00000000"
             android:strokeColor="#FFFFFFFF"
-            android:strokeWidth="4"
-            android:pathData="M18,24 L18,18 A12,12 0 0 1 42,18 L42,24" />
-        <!-- Lock body: rounded rect (10,24)→(50,54) rx=4 -->
+            android:strokeWidth="5.5"
+            android:strokeLineCap="round"
+            android:pathData="M9,26 L9,15 Q9,0 27,0 Q45,0 45,15 L45,26" />
+        <!-- Lock body: rounded rect x[0..54] y[26..68] rx=7 -->
         <path
             android:fillColor="#FFFFFFFF"
-            android:pathData="M14,24 L46,24 Q50,24 50,28 L50,50 Q50,54 46,54 L14,54 Q10,54 10,50 L10,28 Q10,24 14,24 Z" />
-        <!-- Keyhole: circle cx=30 cy=38 r=5 (dual-arc) -->
+            android:pathData="M7,26 L47,26 Q54,26 54,33 L54,61 Q54,68 47,68 L7,68 Q0,68 0,61 L0,33 Q0,26 7,26 Z" />
+        <!-- Keyhole circle: cx=27 cy=44 r=7.5 (dual-arc approximation) -->
         <path
             android:fillColor="#FF6750A4"
-            android:pathData="M30,33 A5,5 0 1 0 30,43 A5,5 0 1 0 30,33 Z" />
+            android:pathData="M27,36.5 A7.5,7.5 0 1 0 27,51.5 A7.5,7.5 0 1 0 27,36.5 Z" />
         <!-- Keyhole stem -->
         <path
             android:fillColor="#FF6750A4"
-            android:pathData="M27,43 L33,43 L31,50 L29,50 Z" />
+            android:pathData="M24,51.5 L30,51.5 L28.5,60 L25.5,60 Z" />
     </group>
 </vector>

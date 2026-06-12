@@ -1,9 +1,17 @@
 package com.natepad.app.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -12,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Key
@@ -22,6 +31,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DismissibleDrawerSheet
 import androidx.compose.material3.DismissibleNavigationDrawer
 import androidx.compose.material3.DrawerValue
@@ -57,6 +67,8 @@ import com.natepad.app.ui.screens.CryptoScreen
 import com.natepad.app.ui.screens.HomeScreen
 import com.natepad.app.ui.screens.KeysScreen
 import com.natepad.app.ui.screens.SettingsScreen
+import com.natepad.app.ui.theme.AppTheme
+import com.natepad.app.ui.theme.NatepadTheme
 import kotlinx.coroutines.launch
 
 private enum class NavDestination(
@@ -73,168 +85,225 @@ private enum class NavDestination(
 @Composable
 fun NatepadApp(
     isLocked: Boolean,
-    onUnlock: () -> Unit
+    showUnlockButton: Boolean,
+    onUnlock: () -> Unit,
+    selectedTheme: AppTheme = AppTheme.MATERIAL_YOU,
+    onThemeChange: (AppTheme) -> Unit = {}
 ) {
-    if (isLocked) {
-        LockScreen(onUnlock = onUnlock)
-        return
-    }
+    NatepadTheme(appTheme = selectedTheme) {
+        // All state declared unconditionally — required by Compose slot tracking.
+        val configuration = LocalConfiguration.current
+        val screenWidthDp = configuration.screenWidthDp
+        val isTablet = screenWidthDp >= 600
+        val isExpanded = screenWidthDp >= 840
 
-    val configuration = LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp
-    val isTablet = screenWidthDp >= 600
-    val isExpanded = screenWidthDp >= 840
+        var currentDest by rememberSaveable { mutableStateOf(NavDestination.HOME) }
+        var cryptoMode by rememberSaveable { mutableStateOf(CryptoMode.ENCRYPT) }
+        var showCrypto by rememberSaveable { mutableStateOf(false) }
 
-    var currentDest by rememberSaveable { mutableStateOf(NavDestination.HOME) }
-    var cryptoMode by rememberSaveable { mutableStateOf(CryptoMode.ENCRYPT) }
-    var showCrypto by rememberSaveable { mutableStateOf(false) }
+        val expandedDrawerState = rememberDrawerState(DrawerValue.Open)
+        val tabletDrawerState = rememberDrawerState(DrawerValue.Closed)
+        val scope = rememberCoroutineScope()
+        val focusManager = LocalFocusManager.current
 
-    // Hoist all drawer state so Compose slot count stays stable across config changes.
-    val expandedDrawerState = rememberDrawerState(DrawerValue.Open)
-    val tabletDrawerState = rememberDrawerState(DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-    val focusManager = LocalFocusManager.current
-
-    val onNavSelect: (NavDestination) -> Unit = { dest ->
-        currentDest = dest
-        if (dest != NavDestination.HOME) showCrypto = false
-        if (!isExpanded && tabletDrawerState.isOpen) {
-            scope.launch { tabletDrawerState.close() }
+        if (isLocked) {
+            LockScreen(showUnlockButton = showUnlockButton, onUnlock = onUnlock)
+            return@NatepadTheme
         }
-    }
 
-    val topBarTitle = when {
-        showCrypto -> cryptoMode.label
-        else -> currentDest.label
-    }
+        val onNavSelect: (NavDestination) -> Unit = { dest ->
+            currentDest = dest
+            if (dest != NavDestination.HOME) showCrypto = false
+            if (!isExpanded && tabletDrawerState.isOpen) {
+                scope.launch { tabletDrawerState.close() }
+            }
+        }
 
-    // imePadding: content slides up above the keyboard instead of being covered.
-    // pointerInput tap handler: tapping any empty area clears focus → keyboard dismisses.
-    val screenContent: @Composable (Modifier) -> Unit = { mod ->
-        Box(
-            modifier = mod
-                .imePadding()
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { focusManager.clearFocus() })
-                }
-        ) {
-            when {
-                currentDest == NavDestination.HOME && showCrypto -> {
-                    CryptoScreen(initialMode = cryptoMode, isTablet = isTablet, modifier = Modifier.fillMaxSize())
-                }
-                currentDest == NavDestination.HOME -> {
-                    HomeScreen(
-                        onModeSelected = { mode -> cryptoMode = mode; showCrypto = true },
-                        onNavigateToKeys = { currentDest = NavDestination.KEYS },
-                        isTablet = isTablet,
+        val topBarIcon: ImageVector = when {
+            showCrypto -> Icons.Default.Lock
+            else -> currentDest.iconSelected
+        }
+        val topBarLabel: String = when {
+            showCrypto -> cryptoMode.label
+            else -> currentDest.label
+        }
+
+        // imePadding: content slides up above keyboard instead of being covered.
+        // pointerInput tap: tapping empty area clears focus → keyboard dismisses.
+        val screenContent: @Composable (Modifier) -> Unit = { mod ->
+            Box(
+                modifier = mod
+                    .imePadding()
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = { focusManager.clearFocus() })
+                    }
+            ) {
+                when {
+                    currentDest == NavDestination.HOME && showCrypto -> {
+                        CryptoScreen(initialMode = cryptoMode, isTablet = isTablet, modifier = Modifier.fillMaxSize())
+                    }
+                    currentDest == NavDestination.HOME -> {
+                        HomeScreen(
+                            onModeSelected = { mode -> cryptoMode = mode; showCrypto = true },
+                            onNavigateToKeys = { currentDest = NavDestination.KEYS },
+                            isTablet = isTablet,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    currentDest == NavDestination.KEYS -> {
+                        KeysScreen(isTablet = isTablet, modifier = Modifier.fillMaxSize())
+                    }
+                    else -> SettingsScreen(
+                        selectedTheme = selectedTheme,
+                        onThemeChange = onThemeChange,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
-                currentDest == NavDestination.KEYS -> {
-                    KeysScreen(isTablet = isTablet, modifier = Modifier.fillMaxSize())
+            }
+        }
+
+        when {
+            // ── Expanded (≥840dp): dismissible drawer alongside content ──────
+            isExpanded -> {
+                val drawerOpen = expandedDrawerState.targetValue == DrawerValue.Open
+                DismissibleNavigationDrawer(
+                    drawerState = expandedDrawerState,
+                    drawerContent = {
+                        DismissibleDrawerSheet {
+                            DrawerContent(currentDest = currentDest, onNavSelect = onNavSelect)
+                        }
+                    }
+                ) {
+                    Scaffold(
+                        topBar = {
+                            TopAppBar(
+                                title = { TopBarTitle(icon = topBarIcon, label = topBarLabel) },
+                                navigationIcon = {
+                                    HamburgerButton(isOpen = drawerOpen) {
+                                        scope.launch {
+                                            if (drawerOpen) expandedDrawerState.close()
+                                            else expandedDrawerState.open()
+                                        }
+                                    }
+                                },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                )
+                            )
+                        }
+                    ) { innerPadding ->
+                        screenContent(Modifier.padding(innerPadding).fillMaxSize())
+                    }
                 }
-                else -> SettingsScreen(modifier = Modifier.fillMaxSize())
+            }
+
+            // ── Tablet (600–839dp): modal drawer via hamburger ───────────────
+            isTablet -> {
+                val drawerOpen = tabletDrawerState.targetValue == DrawerValue.Open
+                ModalNavigationDrawer(
+                    drawerState = tabletDrawerState,
+                    drawerContent = {
+                        ModalDrawerSheet {
+                            DrawerContent(currentDest = currentDest, onNavSelect = onNavSelect)
+                        }
+                    }
+                ) {
+                    Scaffold(
+                        topBar = {
+                            TopAppBar(
+                                title = { TopBarTitle(icon = topBarIcon, label = topBarLabel) },
+                                navigationIcon = {
+                                    HamburgerButton(isOpen = drawerOpen) {
+                                        scope.launch { tabletDrawerState.open() }
+                                    }
+                                },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                )
+                            )
+                        }
+                    ) { innerPadding ->
+                        screenContent(Modifier.padding(innerPadding).fillMaxSize())
+                    }
+                }
+            }
+
+            // ── Phone (<600dp): bottom navigation bar ────────────────────────
+            else -> {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = { TopBarTitle(icon = topBarIcon, label = topBarLabel) },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        )
+                    },
+                    bottomBar = {
+                        NavigationBar {
+                            NavDestination.entries.forEach { dest ->
+                                NavigationBarItem(
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (currentDest == dest) dest.iconSelected else dest.icon,
+                                            contentDescription = dest.label
+                                        )
+                                    },
+                                    label = { Text(dest.label) },
+                                    selected = currentDest == dest,
+                                    onClick = { onNavSelect(dest) }
+                                )
+                            }
+                        }
+                    }
+                ) { innerPadding ->
+                    screenContent(Modifier.padding(innerPadding).fillMaxSize())
+                }
             }
         }
     }
+}
 
-    when {
-        // ── Expanded (≥840dp): dismissible drawer that slides alongside content ──
-        isExpanded -> {
-            DismissibleNavigationDrawer(
-                drawerState = expandedDrawerState,
-                drawerContent = {
-                    DismissibleDrawerSheet {
-                        DrawerContent(currentDest = currentDest, onNavSelect = onNavSelect)
-                    }
-                }
-            ) {
-                Scaffold(
-                    topBar = {
-                        TopAppBar(
-                            title = { Text(topBarTitle) },
-                            navigationIcon = {
-                                IconButton(onClick = {
-                                    scope.launch {
-                                        if (expandedDrawerState.isOpen) expandedDrawerState.close()
-                                        else expandedDrawerState.open()
-                                    }
-                                }) {
-                                    Icon(Icons.Default.Menu, contentDescription = "Toggle sidebar")
-                                }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
-                        )
-                    }
-                ) { innerPadding ->
-                    screenContent(Modifier.padding(innerPadding).fillMaxSize())
-                }
-            }
+/** Top bar title: icon + text, animates on destination change. */
+@Composable
+private fun TopBarTitle(icon: ImageVector, label: String) {
+    AnimatedContent(
+        targetState = icon to label,
+        transitionSpec = {
+            (fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.9f)) togetherWith
+                (fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 0.9f))
+        },
+        label = "top_bar_title"
+    ) { (ic, lbl) ->
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = ic,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(Modifier.size(10.dp))
+            Text(lbl)
         }
+    }
+}
 
-        // ── Tablet (600–839dp): modal drawer opened via hamburger ─────────────
-        isTablet -> {
-            ModalNavigationDrawer(
-                drawerState = tabletDrawerState,
-                drawerContent = {
-                    ModalDrawerSheet {
-                        DrawerContent(currentDest = currentDest, onNavSelect = onNavSelect)
-                    }
-                }
-            ) {
-                Scaffold(
-                    topBar = {
-                        TopAppBar(
-                            title = { Text(topBarTitle) },
-                            navigationIcon = {
-                                IconButton(onClick = { scope.launch { tabletDrawerState.open() } }) {
-                                    Icon(Icons.Default.Menu, contentDescription = "Open menu")
-                                }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
-                        )
-                    }
-                ) { innerPadding ->
-                    screenContent(Modifier.padding(innerPadding).fillMaxSize())
-                }
-            }
-        }
-
-        // ── Phone (<600dp): bottom navigation bar ─────────────────────────────
-        else -> {
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = { Text(topBarTitle) },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        )
-                    )
-                },
-                bottomBar = {
-                    NavigationBar {
-                        NavDestination.entries.forEach { dest ->
-                            NavigationBarItem(
-                                icon = {
-                                    Icon(
-                                        imageVector = if (currentDest == dest) dest.iconSelected else dest.icon,
-                                        contentDescription = dest.label
-                                    )
-                                },
-                                label = { Text(dest.label) },
-                                selected = currentDest == dest,
-                                onClick = { onNavSelect(dest) }
-                            )
-                        }
-                    }
-                }
-            ) { innerPadding ->
-                screenContent(Modifier.padding(innerPadding).fillMaxSize())
-            }
+/** Hamburger button that cross-fades to a Close icon when the drawer is open. */
+@Composable
+private fun HamburgerButton(isOpen: Boolean, onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        AnimatedContent(
+            targetState = isOpen,
+            transitionSpec = {
+                (fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.7f)) togetherWith
+                    (fadeOut(tween(180)) + scaleOut(tween(180), targetScale = 0.7f))
+            },
+            label = "hamburger"
+        ) { open ->
+            Icon(
+                imageVector = if (open) Icons.Default.Close else Icons.Default.Menu,
+                contentDescription = if (open) "Close menu" else "Open menu"
+            )
         }
     }
 }
@@ -273,12 +342,11 @@ private fun DrawerContent(
 }
 
 /**
- * Full-screen branded lock UI. The biometric prompt fires automatically on
- * foreground (MainActivity.onStart) — the button is the retry path after a
- * cancelled or failed prompt.
+ * Full-screen branded lock UI. Shows a spinner while the biometric auto-prompt is
+ * in progress; "Try again" button appears only after a failed/cancelled attempt.
  */
 @Composable
-private fun LockScreen(onUnlock: () -> Unit) {
+private fun LockScreen(showUnlockButton: Boolean, onUnlock: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -315,14 +383,21 @@ private fun LockScreen(onUnlock: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(28.dp))
-            Button(onClick = onUnlock) {
-                Icon(
-                    imageVector = Icons.Default.Fingerprint,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
+            if (showUnlockButton) {
+                Button(onClick = onUnlock) {
+                    Icon(
+                        imageVector = Icons.Default.Fingerprint,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    Text("Try again")
+                }
+            } else {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(36.dp),
+                    strokeWidth = 3.dp
                 )
-                Spacer(Modifier.size(8.dp))
-                Text("Unlock")
             }
         }
     }

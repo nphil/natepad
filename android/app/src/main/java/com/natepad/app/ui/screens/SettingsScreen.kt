@@ -6,15 +6,23 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricManager
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Download
@@ -39,11 +47,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.natepad.app.data.BackupService
@@ -51,6 +62,7 @@ import com.natepad.app.data.KeyRepository
 import com.natepad.app.ui.components.SectionLabel
 import com.natepad.app.ui.components.StatusCard
 import com.natepad.app.ui.components.StatusType
+import com.natepad.app.ui.theme.AppTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,7 +74,11 @@ import java.util.Locale
 private const val PREF_BIOMETRIC_LOCK = "biometric_lock"
 
 @Composable
-fun SettingsScreen(modifier: Modifier = Modifier) {
+fun SettingsScreen(
+    selectedTheme: AppTheme = AppTheme.MATERIAL_YOU,
+    onThemeChange: (AppTheme) -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("natepad_settings", Context.MODE_PRIVATE) }
     val repo = remember { KeyRepository.getInstance(context) }
@@ -203,6 +219,31 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )
+            }
+        }
+
+        // ── Appearance ────────────────────────────────────────────────────────
+        SectionLabel("Appearance", modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Theme",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    AppTheme.values().forEach { theme ->
+                        ThemeSwatch(
+                            theme = theme,
+                            selected = selectedTheme == theme,
+                            onClick = { onThemeChange(theme) }
+                        )
+                    }
+                }
             }
         }
 
@@ -354,6 +395,46 @@ private fun BackupPasswordDialog(
             TextButton(onClick = onDismiss, enabled = !isWorking) { Text("Cancel") }
         }
     )
+}
+
+@Composable
+private fun ThemeSwatch(theme: AppTheme, selected: Boolean, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(60.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(theme.swatchBgColor)
+                .border(
+                    width = if (selected) 3.dp else 1.5.dp,
+                    color = if (selected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outline,
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(theme.swatchPrimaryColor)
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = theme.displayName,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (selected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            maxLines = 2
+        )
+    }
 }
 
 private fun shareBackupFile(context: Context, json: String) {
