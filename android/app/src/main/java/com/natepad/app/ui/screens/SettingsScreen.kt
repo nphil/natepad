@@ -38,9 +38,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -309,6 +311,9 @@ private fun BackupPasswordDialog(
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     enabled = !isWorking,
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = if (requireConfirm) ImeAction.Next else ImeAction.Done
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (requireConfirm) {
@@ -319,6 +324,7 @@ private fun BackupPasswordDialog(
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
                         enabled = !isWorking,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

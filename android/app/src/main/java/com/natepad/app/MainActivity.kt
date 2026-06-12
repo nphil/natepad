@@ -1,5 +1,6 @@
 package com.natepad.app
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,7 +17,24 @@ import com.natepad.app.ui.theme.NatepadTheme
 class MainActivity : AppCompatActivity() {
 
     private var isLocked by mutableStateOf(false)
-    private var requireBiometric by mutableStateOf(false)
+
+    private val settingsPrefs by lazy {
+        getSharedPreferences("natepad_settings", Context.MODE_PRIVATE)
+    }
+
+    /**
+     * Lock is active only when BOTH are true:
+     *  1. the user enabled the Biometric Lock toggle in Settings
+     *  2. the device actually has BIOMETRIC_STRONG enrolled
+     * Reading the pref fresh on every call means toggling Settings
+     * takes effect immediately, without restarting the app.
+     */
+    private fun lockEnabled(): Boolean {
+        if (!settingsPrefs.getBoolean("biometric_lock", false)) return false
+        return BiometricManager.from(this).canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG
+        ) == BiometricManager.BIOMETRIC_SUCCESS
+    }
 
     private val biometricPrompt by lazy {
         val executor = ContextCompat.getMainExecutor(this)
@@ -26,17 +44,17 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                // Keep locked on error — user can retry
+                // Keep locked — the lock screen's Unlock button retries
             }
 
             override fun onAuthenticationFailed() {
-                // Fingerprint not recognized, keep locked
+                // Biometric not recognized — prompt stays up for retry
             }
         })
     }
 
     private val promptInfo by lazy {
-        // DEVICE_CREDENTIAL and setNegativeButtonText are mutually exclusive — use BIOMETRIC_STRONG only
+        // DEVICE_CREDENTIAL and setNegativeButtonText are mutually exclusive — BIOMETRIC_STRONG only
         BiometricPrompt.PromptInfo.Builder()
             .setTitle(getString(R.string.biometric_prompt_title))
             .setSubtitle(getString(R.string.biometric_prompt_subtitle))
@@ -48,12 +66,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        // Check if biometric is available and configured
-        val biometricManager = BiometricManager.from(this)
-        requireBiometric = biometricManager.canAuthenticate(
-            BiometricManager.Authenticators.BIOMETRIC_STRONG
-        ) == BiometricManager.BIOMETRIC_SUCCESS
 
         setContent {
             NatepadTheme {
@@ -67,28 +79,28 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        if (requireBiometric) {
+        if (lockEnabled()) {
             isLocked = true
         }
     }
 
     override fun onStart() {
         super.onStart()
-        if (isLocked && requireBiometric) {
-            authenticateBiometric()
+        if (isLocked) {
+            if (lockEnabled()) {
+                // Prompt immediately — the lock screen sits behind as fallback
+                authenticateBiometric()
+            } else {
+                // Lock was disabled (or biometrics removed) while backgrounded
+                isLocked = false
+            }
         }
     }
 
     private fun authenticateBiometric() {
-        val biometricManager = BiometricManager.from(this)
-        val canAuth = biometricManager.canAuthenticate(
-            BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
-        )
-        if (canAuth == BiometricManager.BIOMETRIC_SUCCESS) {
+        if (lockEnabled()) {
             biometricPrompt.authenticate(promptInfo)
         } else {
-            // No biometric enrolled — just unlock
             isLocked = false
         }
     }

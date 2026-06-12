@@ -34,10 +34,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.natepad.app.data.KeyRecord
@@ -259,11 +263,15 @@ private fun EncryptControls(
         }
     }
     if (signingKey != null) {
+        val focusManager = LocalFocusManager.current
         OutlinedTextField(
             value = passphrase,
             onValueChange = onPassphraseChange,
             label = { Text("Signing passphrase") },
             visualTransformation = PasswordVisualTransformation(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -425,11 +433,15 @@ private fun SignWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: Mod
                 }
             }
         }
+        val focusManager = LocalFocusManager.current
         OutlinedTextField(
             value = passphrase,
             onValueChange = { passphrase = it },
             label = { Text("Passphrase") },
             visualTransformation = PasswordVisualTransformation(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -574,6 +586,8 @@ private fun PassphraseDialog(
                     label = { Text("Passphrase") },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { if (passphrase.isNotEmpty()) onConfirm(passphrase) }),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
