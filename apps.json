@@ -17,6 +17,14 @@
       "category": "utilities",
       "versions": [
         {
+          "version": "2.11.0",
+          "buildVersion": "2.11.0",
+          "date": "2026-07-17T12:37:41Z",
+          "localizedDescription": "## What's new in 2.11.0\n\n- feat: 30 themeable palettes, adaptive monochrome icon, no-wrap buttons\n\n---\nUnsigned IPA \u2014 sideload with AltStore or Feather.\n",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.11.0/Natepad.ipa",
+          "size": 1107207
+        },
+        {
           "version": "2.10.1",
           "buildVersion": "2.10.1",
           "date": "2026-07-17T03:18:46Z",
