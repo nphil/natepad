@@ -61,6 +61,17 @@ jobs:
 
           NEW_VER="${MAJOR}.${MINOR}.${PATCH}"
           [ "$BUMP" != "none" ] && NEW_TAG="v${NEW_VER}" || NEW_TAG=""
+
+          # Race guard: if this run was queued long enough that the iOS workflow
+          # already tagged this exact commit (bump computes to "none" because the
+          # tag is visible), still target that release so the APK gets attached.
+          if [ -z "$NEW_TAG" ]; then
+            HEAD_TAG=$(git describe --exact-match --tags HEAD 2>/dev/null || true)
+            if echo "$HEAD_TAG" | grep -qE '^v[0-9]'; then
+              NEW_TAG="$HEAD_TAG"
+              echo "HEAD is already tagged ${HEAD_TAG} — will attach the APK to its release"
+            fi
+          fi
           BUILD_NUM=$(git rev-list --count HEAD)
 
           echo "Version: ${NEW_VER}  (bump=${BUMP}, code=${BUILD_NUM})"
