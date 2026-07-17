@@ -77,6 +77,7 @@ jobs:
           echo "Version: ${NEW_VER}  (bump=${BUMP}, code=${BUILD_NUM})"
           echo "new_version=${NEW_VER}" >> "$GITHUB_OUTPUT"
           echo "new_tag=${NEW_TAG}"     >> "$GITHUB_OUTPUT"
+          echo "last_tag=${LAST_TAG}"   >> "$GITHUB_OUTPUT"
           echo "build_num=${BUILD_NUM}" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK 17
@@ -119,23 +120,37 @@ jobs:
             --notes "Signed release APK. Built from \`${SHORT_SHA}\` on $(date -u +'%Y-%m-%d %H:%M UTC')" \
             --prerelease
 
-      # The versioned vX.Y.Z release is created by the iOS workflow (build.yml),
-      # which takes ~15 min. Wait for it, then attach the APK so Obtainium can
-      # track versioned releases with a single .apk asset.
+      # The versioned vX.Y.Z release is created by the iOS workflow (build.yml).
+      # Wait for it, then attach the APK so Obtainium can track versioned
+      # releases with a single .apk asset. On no-bump builds, also heal the
+      # newest versioned release if a previous run lost the tag race and left
+      # it without an APK.
       - name: Attach APK to versioned release
-        if: steps.semver.outputs.new_tag != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NEW_TAG: ${{ steps.semver.outputs.new_tag }}
+          LAST_TAG: ${{ steps.semver.outputs.last_tag }}
         run: |
-          echo "Waiting for release ${NEW_TAG} (created by the IPA workflow)…"
+          TARGET="$NEW_TAG"
+          if [ -z "$TARGET" ] && [ -n "$LAST_TAG" ]; then
+            if gh release view "$LAST_TAG" >/dev/null 2>&1 && \
+               ! gh release view "$LAST_TAG" --json assets -q '.assets[].name' 2>/dev/null | grep -q '\.apk$'; then
+              echo "Release ${LAST_TAG} has no APK — attaching this build to it"
+              TARGET="$LAST_TAG"
+            fi
+          fi
+          if [ -z "$TARGET" ]; then
+            echo "No versioned release needs an APK — skipping"
+            exit 0
+          fi
+          echo "Waiting for release ${TARGET} (created by the IPA workflow)…"
           for i in $(seq 1 60); do
-            if gh release view "$NEW_TAG" >/dev/null 2>&1; then
-              gh release upload "$NEW_TAG" NatePad-android.apk --clobber
-              echo "APK attached to ${NEW_TAG}"
+            if gh release view "$TARGET" >/dev/null 2>&1; then
+              gh release upload "$TARGET" NatePad-android.apk --clobber
+              echo "APK attached to ${TARGET}"
               exit 0
             fi
             sleep 30
           done
-          echo "Release ${NEW_TAG} never appeared (iOS build failed?)"
+          echo "Release ${TARGET} never appeared (iOS build failed?)"
           exit 1
