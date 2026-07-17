@@ -17,6 +17,14 @@
       "category": "utilities",
       "versions": [
         {
+          "version": "2.10.1",
+          "buildVersion": "2.10.1",
+          "date": "2026-07-17T03:18:46Z",
+          "localizedDescription": "## What's new in 2.10.1\n\n- fix: Android \u2014 crypto tab selection is single-source-of-truth in app state\n\n---\nUnsigned IPA \u2014 sideload with AltStore or Feather.\n",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.10.1/Natepad.ipa",
+          "size": 1107149
+        },
+        {
           "version": "2.10.0",
           "buildVersion": "2.10.0",
           "date": "2026-07-17T03:15:33Z",
