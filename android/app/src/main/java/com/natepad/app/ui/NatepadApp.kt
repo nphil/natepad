@@ -2,6 +2,7 @@ package com.natepad.app.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -77,11 +78,6 @@ fun NatepadApp(
     onThemeChange: (AppTheme) -> Unit = {}
 ) {
     NatepadTheme(appTheme = selectedTheme) {
-        if (isLocked) {
-            LockScreen(showUnlockButton = showUnlockButton, onUnlock = onUnlock)
-            return@NatepadTheme
-        }
-
         var currentDest by rememberSaveable { mutableStateOf(NavDestination.HOME) }
         var cryptoMode by rememberSaveable { mutableStateOf(CryptoMode.ENCRYPT) }
         var showCrypto by rememberSaveable { mutableStateOf(false) }
@@ -151,7 +147,11 @@ fun NatepadApp(
                         modifier = Modifier.fillMaxSize(),
                         onOpenWithInput = { mode, text ->
                             cryptoMode = mode
-                            cryptoState.stateFor(mode).input = text
+                            cryptoState.stateFor(mode).let { st ->
+                                st.input = text
+                                st.output = ""
+                                st.status = null
+                            }
                             showCrypto = true
                         },
                         onImportKey = { text ->
@@ -170,6 +170,17 @@ fun NatepadApp(
                     )
                 }
             }
+        }
+
+        // Lock screen draws OVER the app instead of replacing it, so locking never
+        // unmounts the UI — drafts and navigation state survive lock/unlock cycles.
+        // The overlay is opaque; nothing beneath it is visible or interactive.
+        AnimatedVisibility(
+            visible = isLocked,
+            enter = fadeIn(NatepadMotion.effectsDefault()),
+            exit = fadeOut(NatepadMotion.effectsDefault())
+        ) {
+            LockScreen(showUnlockButton = showUnlockButton, onUnlock = onUnlock)
         }
     }
 }

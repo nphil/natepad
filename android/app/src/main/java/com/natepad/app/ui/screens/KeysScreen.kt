@@ -9,6 +9,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -101,7 +103,7 @@ import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun KeysScreen(
     modifier: Modifier = Modifier,
@@ -278,7 +280,7 @@ fun KeysScreen(
     ListDetailPaneScaffold(
         directive = navigator.scaffoldDirective,
         value = navigator.scaffoldValue,
-        modifier = modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+        modifier = modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)),
         listPane = {
             // Canonical list-detail proportion: fixed-ish 360dp list, flexible detail.
             AnimatedPane(modifier = Modifier.preferredWidth(360.dp)) {
@@ -480,6 +482,7 @@ private fun KeyCard(
 
 // ── Detail pane ───────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun KeyDetailPane(
     record: KeyRecord,
@@ -543,8 +546,9 @@ private fun KeyDetailPane(
         )
 
         Spacer(Modifier.height(20.dp))
-        Row(
+        FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             if (record.hasPublic) {
@@ -630,9 +634,10 @@ private fun GenerateKeyDialog(
     var passphrase by remember { mutableStateOf("") }
     var confirmPassphrase by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var working by remember { mutableStateOf(false) }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!working) onDismiss() },
         title = { Text("Generate PGP Key") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -645,16 +650,28 @@ private fun GenerateKeyDialog(
             }
         },
         confirmButton = {
-            Button(onClick = {
-                when {
-                    name.isBlank() -> error = "Name is required"
-                    passphrase.isEmpty() -> error = "Passphrase cannot be empty"
-                    passphrase != confirmPassphrase -> error = "Passphrases do not match"
-                    else -> { error = null; onGenerate(name.trim(), email.trim(), passphrase) }
+            Button(
+                enabled = !working,
+                onClick = {
+                    when {
+                        name.isBlank() -> error = "Name is required"
+                        passphrase.isEmpty() -> error = "Passphrase cannot be empty"
+                        passphrase != confirmPassphrase -> error = "Passphrases do not match"
+                        else -> {
+                            error = null; working = true
+                            onGenerate(name.trim(), email.trim(), passphrase)
+                        }
+                    }
                 }
-            }) { Text("Generate") }
+            ) {
+                if (working) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Generate")
+                }
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !working) { Text("Cancel") } }
     )
 }
 
@@ -707,7 +724,8 @@ private fun QrDialog(record: KeyRecord, onDismiss: () -> Unit) {
         text = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(

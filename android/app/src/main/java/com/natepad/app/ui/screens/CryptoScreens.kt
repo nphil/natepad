@@ -67,6 +67,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
@@ -81,6 +82,8 @@ import com.natepad.app.ui.components.SectionLabel
 import com.natepad.app.ui.components.StatusType
 import com.natepad.app.ui.components.contentWidth
 import com.natepad.app.util.SecureClipboard
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -149,6 +152,9 @@ internal fun CryptoScreen(
     val keys by repo.keys.collectAsState()
 
     var selectedMode by remember { mutableStateOf(initialMode) }
+    // Lives at screen level (outside AnimatedContent) so an in-flight encrypt/decrypt
+    // isn't cancelled by switching mode tabs mid-operation.
+    val opScope = rememberCoroutineScope()
 
     // Expanded windows (tablets in landscape, large desktop windows) get the
     // input/output side by side; everything narrower stacks vertically.
@@ -191,7 +197,13 @@ internal fun CryptoScreen(
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = CryptoMode.entries.size),
                         icon = {}
                     ) {
-                        Text(mode.label, maxLines = 1)
+                        Text(
+                            text = mode.label,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelMedium
+                        )
                     }
                 }
             }
@@ -211,10 +223,10 @@ internal fun CryptoScreen(
                 modifier = Modifier.fillMaxSize()
             ) { mode ->
                 when (mode) {
-                    CryptoMode.ENCRYPT -> EncryptWorkflow(states.encrypt, keys, isWide)
-                    CryptoMode.DECRYPT -> DecryptWorkflow(states.decrypt, keys, isWide)
-                    CryptoMode.SIGN -> SignWorkflow(states.sign, keys, isWide)
-                    CryptoMode.VERIFY -> VerifyWorkflow(states.verify, keys, isWide)
+                    CryptoMode.ENCRYPT -> EncryptWorkflow(states.encrypt, keys, isWide, opScope)
+                    CryptoMode.DECRYPT -> DecryptWorkflow(states.decrypt, keys, isWide, opScope)
+                    CryptoMode.SIGN -> SignWorkflow(states.sign, keys, isWide, opScope)
+                    CryptoMode.VERIFY -> VerifyWorkflow(states.verify, keys, isWide, opScope)
                 }
             }
         }
@@ -310,20 +322,24 @@ private fun OutputSection(
     onClear: () -> Unit
 ) {
     val context = LocalContext.current
+    // Latch the last non-empty output so Clear animates the old text away
+    // instead of collapsing an empty field.
+    var lastOutput by remember { mutableStateOf(output) }
+    if (output.isNotEmpty()) lastOutput = output
     AnimatedVisibility(
         visible = output.isNotEmpty(),
         enter = expandVertically(NatepadMotion.spatialDefault()) + fadeIn(NatepadMotion.effectsDefault()),
         exit = shrinkVertically(NatepadMotion.spatialFast()) + fadeOut(NatepadMotion.effectsFast())
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            PgpTextField(value = output, onValueChange = {}, label = label, readOnly = true)
+            PgpTextField(value = lastOutput, onValueChange = {}, label = label, readOnly = true)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     if (sensitive) {
-                        SecureClipboard.copySensitive(context, output)
+                        SecureClipboard.copySensitive(context, lastOutput)
                         onCopied("Copied — the clipboard clears itself in 60 s" to StatusType.INFO)
                     } else {
-                        SecureClipboard.copy(context, output)
+                        SecureClipboard.copy(context, lastOutput)
                         onCopied("Copied to clipboard" to StatusType.INFO)
                     }
                 }) {
@@ -335,7 +351,7 @@ private fun OutputSection(
                     OutlinedButton(onClick = {
                         val intent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, output)
+                            putExtra(Intent.EXTRA_TEXT, lastOutput)
                         }
                         context.startActivity(Intent.createChooser(intent, "Share"))
                     }) {
@@ -354,8 +370,7 @@ private fun OutputSection(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EncryptWorkflow(state: EncryptState, keys: List<KeyRecord>, isWide: Boolean) {
-    val scope = rememberCoroutineScope()
+private fun EncryptWorkflow(state: EncryptState, keys: List<KeyRecord>, isWide: Boolean, scope: CoroutineScope) {
     val publicKeys = keys.filter { it.hasPublic }
     val privateKeys = keys.filter { it.hasPrivate }
 
@@ -371,25 +386,29 @@ private fun EncryptWorkflow(state: EncryptState, keys: List<KeyRecord>, isWide: 
         scope.launch {
             state.status = null
             state.working = true
-            runCatching {
-                withContext(Dispatchers.Default) {
-                    PgpService.encrypt(
-                        state.input, state.recipients.toList(),
-                        state.signingKey,
-                        state.passphrase.ifEmpty { null }
-                    )
+            try {
+                runCatching {
+                    withContext(Dispatchers.Default) {
+                        PgpService.encrypt(
+                            state.input, state.recipients.toList(),
+                            state.signingKey,
+                            state.passphrase.ifEmpty { null }
+                        )
+                    }
+                }.onSuccess { result ->
+                    state.output = result
+                    state.status = if (state.signingKey != null) {
+                        "Signed and encrypted successfully" to StatusType.SUCCESS
+                    } else {
+                        "Encrypted successfully" to StatusType.SUCCESS
+                    }
+                }.onFailure { e ->
+                    if (e is CancellationException) throw e
+                    state.status = (e.message ?: "Encryption failed") to StatusType.ERROR
                 }
-            }.onSuccess { result ->
-                state.output = result
-                state.status = if (state.signingKey != null) {
-                    "Signed and encrypted successfully" to StatusType.SUCCESS
-                } else {
-                    "Encrypted successfully" to StatusType.SUCCESS
-                }
-            }.onFailure { e ->
-                state.status = (e.message ?: "Encryption failed") to StatusType.ERROR
+            } finally {
+                state.working = false
             }
-            state.working = false
         }
     }
 
@@ -468,8 +487,7 @@ private fun EncryptWorkflow(state: EncryptState, keys: List<KeyRecord>, isWide: 
 // ── Decrypt ───────────────────────────────────────────────────────────────────
 
 @Composable
-private fun DecryptWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Boolean) {
-    val scope = rememberCoroutineScope()
+private fun DecryptWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Boolean, scope: CoroutineScope) {
     var passphraseDialogKey by remember { mutableStateOf<KeyRecord?>(null) }
 
     val privateKeys = keys.filter { it.hasPrivate }
@@ -490,24 +508,28 @@ private fun DecryptWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Boo
         scope.launch {
             state.status = null
             state.working = true
-            runCatching {
-                withContext(Dispatchers.Default) {
-                    PgpService.decrypt(state.input, privateKeys, publicKeys) { passphrase }
-                }
-            }.onSuccess { result ->
-                state.output = result.plaintext
-                state.status = statusFor(result.signature)
-            }.onFailure { e ->
-                when (e) {
-                    is PgpService.PassphraseRequiredException -> passphraseDialogKey = e.record
-                    is PgpService.WrongPassphraseException -> {
-                        state.status = "Wrong passphrase for ${e.record.displayName} — try again" to StatusType.ERROR
-                        passphraseDialogKey = e.record
+            try {
+                runCatching {
+                    withContext(Dispatchers.Default) {
+                        PgpService.decrypt(state.input, privateKeys, publicKeys) { passphrase }
                     }
-                    else -> state.status = (e.message ?: "Decryption failed") to StatusType.ERROR
+                }.onSuccess { result ->
+                    state.output = result.plaintext
+                    state.status = statusFor(result.signature)
+                }.onFailure { e ->
+                    if (e is CancellationException) throw e
+                    when (e) {
+                        is PgpService.PassphraseRequiredException -> passphraseDialogKey = e.record
+                        is PgpService.WrongPassphraseException -> {
+                            state.status = "Wrong passphrase for ${e.record.displayName} — try again" to StatusType.ERROR
+                            passphraseDialogKey = e.record
+                        }
+                        else -> state.status = (e.message ?: "Decryption failed") to StatusType.ERROR
+                    }
                 }
+            } finally {
+                state.working = false
             }
-            state.working = false
         }
     }
 
@@ -559,8 +581,7 @@ private fun DecryptWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Boo
 // ── Sign ──────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun SignWorkflow(state: SignState, keys: List<KeyRecord>, isWide: Boolean) {
-    val scope = rememberCoroutineScope()
+private fun SignWorkflow(state: SignState, keys: List<KeyRecord>, isWide: Boolean, scope: CoroutineScope) {
     val privateKeys = keys.filter { it.hasPrivate }
 
     fun doSign() {
@@ -572,15 +593,19 @@ private fun SignWorkflow(state: SignState, keys: List<KeyRecord>, isWide: Boolea
         scope.launch {
             state.status = null
             state.working = true
-            runCatching {
-                withContext(Dispatchers.Default) { PgpService.sign(state.input, key, state.passphrase) }
-            }.onSuccess { result ->
-                state.output = result
-                state.status = "Signed successfully" to StatusType.SUCCESS
-            }.onFailure { e ->
-                state.status = (e.message ?: "Signing failed") to StatusType.ERROR
+            try {
+                runCatching {
+                    withContext(Dispatchers.Default) { PgpService.sign(state.input, key, state.passphrase) }
+                }.onSuccess { result ->
+                    state.output = result
+                    state.status = "Signed successfully" to StatusType.SUCCESS
+                }.onFailure { e ->
+                    if (e is CancellationException) throw e
+                    state.status = (e.message ?: "Signing failed") to StatusType.ERROR
+                }
+            } finally {
+                state.working = false
             }
-            state.working = false
         }
     }
 
@@ -629,8 +654,7 @@ private fun SignWorkflow(state: SignState, keys: List<KeyRecord>, isWide: Boolea
 // ── Verify ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun VerifyWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Boolean) {
-    val scope = rememberCoroutineScope()
+private fun VerifyWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Boolean, scope: CoroutineScope) {
     val publicKeys = keys.filter { it.hasPublic }
 
     fun doVerify() {
@@ -640,15 +664,19 @@ private fun VerifyWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Bool
         scope.launch {
             state.status = null
             state.working = true
-            runCatching {
-                withContext(Dispatchers.Default) { PgpService.verify(state.input, publicKeys) }
-            }.onSuccess { result ->
-                state.output = result
-                state.status = "Signature verified" to StatusType.SUCCESS
-            }.onFailure { e ->
-                state.status = (e.message ?: "Verification failed") to StatusType.ERROR
+            try {
+                runCatching {
+                    withContext(Dispatchers.Default) { PgpService.verify(state.input, publicKeys) }
+                }.onSuccess { result ->
+                    state.output = result
+                    state.status = "Signature verified" to StatusType.SUCCESS
+                }.onFailure { e ->
+                    if (e is CancellationException) throw e
+                    state.status = (e.message ?: "Verification failed") to StatusType.ERROR
+                }
+            } finally {
+                state.working = false
             }
-            state.working = false
         }
     }
 

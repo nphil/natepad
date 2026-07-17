@@ -371,6 +371,10 @@ fun NatepadTheme(
     content: @Composable () -> Unit
 ) {
     val colorScheme = appTheme.resolveColorScheme(darkTheme)
+    // Note: material3 1.4.0 keeps MaterialExpressiveTheme/MotionScheme internal
+    // (Expressive theme APIs ship publicly in the 1.5 alphas). Components animate
+    // with standard M3 motion; NatepadMotion below carries the expressive spring
+    // tokens for the app's own animations.
     MaterialTheme(
         colorScheme = colorScheme,
         typography = NatepadTypography,
