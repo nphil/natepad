@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -31,7 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.natepad.app.data.KeyRecord
 
-enum class StatusType { SUCCESS, ERROR, INFO }
+enum class StatusType { SUCCESS, ERROR, INFO, WARNING }
 
 @Composable
 fun StatusCard(
@@ -43,6 +44,7 @@ fun StatusCard(
         StatusType.SUCCESS -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
         StatusType.ERROR -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
         StatusType.INFO -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        StatusType.WARNING -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
     }
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -53,7 +55,11 @@ fun StatusCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = if (type == StatusType.ERROR) Icons.Default.Close else Icons.Default.Check,
+                imageVector = when (type) {
+                    StatusType.ERROR -> Icons.Default.Close
+                    StatusType.WARNING -> Icons.Default.Warning
+                    else -> Icons.Default.Check
+                },
                 contentDescription = null,
                 tint = contentColor,
                 modifier = Modifier.size(18.dp)

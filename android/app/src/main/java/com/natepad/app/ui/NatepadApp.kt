@@ -52,6 +52,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -100,6 +101,10 @@ fun NatepadApp(
         var currentDest by rememberSaveable { mutableStateOf(NavDestination.HOME) }
         var cryptoMode by rememberSaveable { mutableStateOf(CryptoMode.ENCRYPT) }
         var showCrypto by rememberSaveable { mutableStateOf(false) }
+        // Clipboard hand-offs. Plain remember (not saveable): clipboard payloads can be
+        // large and shouldn't be serialized into the saved instance state.
+        var cryptoInitialInput by remember { mutableStateOf("") }
+        var keyImportRequest by remember { mutableStateOf<String?>(null) }
 
         val expandedDrawerState = rememberDrawerState(DrawerValue.Open)
         val tabletDrawerState = rememberDrawerState(DrawerValue.Closed)
@@ -140,18 +145,36 @@ fun NatepadApp(
             ) {
                 when {
                     currentDest == NavDestination.HOME && showCrypto -> {
-                        CryptoScreen(initialMode = cryptoMode, isTablet = isTablet, modifier = Modifier.fillMaxSize())
-                    }
-                    currentDest == NavDestination.HOME -> {
-                        HomeScreen(
-                            onModeSelected = { mode -> cryptoMode = mode; showCrypto = true },
-                            onNavigateToKeys = { currentDest = NavDestination.KEYS },
+                        CryptoScreen(
+                            initialMode = cryptoMode,
+                            initialInput = cryptoInitialInput,
                             isTablet = isTablet,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
+                    currentDest == NavDestination.HOME -> {
+                        HomeScreen(
+                            onModeSelected = { mode ->
+                                cryptoMode = mode; cryptoInitialInput = ""; showCrypto = true
+                            },
+                            onNavigateToKeys = { currentDest = NavDestination.KEYS },
+                            isTablet = isTablet,
+                            modifier = Modifier.fillMaxSize(),
+                            onOpenWithInput = { mode, text ->
+                                cryptoMode = mode; cryptoInitialInput = text; showCrypto = true
+                            },
+                            onImportKey = { text ->
+                                keyImportRequest = text; currentDest = NavDestination.KEYS
+                            }
+                        )
+                    }
                     currentDest == NavDestination.KEYS -> {
-                        KeysScreen(isTablet = isTablet, modifier = Modifier.fillMaxSize())
+                        KeysScreen(
+                            isTablet = isTablet,
+                            modifier = Modifier.fillMaxSize(),
+                            importRequest = keyImportRequest,
+                            onImportRequestConsumed = { keyImportRequest = null }
+                        )
                     }
                     else -> SettingsScreen(
                         selectedTheme = selectedTheme,

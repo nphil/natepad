@@ -1,7 +1,13 @@
 package com.natepad.app.ui.screens
 
 import android.content.Intent
+import android.graphics.Bitmap
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,6 +24,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Key
@@ -26,9 +34,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,21 +48,29 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.natepad.app.data.KeyRecord
 import com.natepad.app.data.KeyRepository
 import com.natepad.app.pgp.PgpService
@@ -61,13 +79,21 @@ import com.natepad.app.ui.components.PgpTextField
 import com.natepad.app.ui.components.SectionLabel
 import com.natepad.app.ui.components.StatusCard
 import com.natepad.app.ui.components.StatusType
+import com.natepad.app.util.PgpContentDetector
+import com.natepad.app.util.PgpContentKind
+import com.natepad.app.util.QrCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KeysScreen(isTablet: Boolean, modifier: Modifier = Modifier) {
+fun KeysScreen(
+    isTablet: Boolean,
+    modifier: Modifier = Modifier,
+    importRequest: String? = null,
+    onImportRequestConsumed: () -> Unit = {}
+) {
     val context = LocalContext.current
     val repo = remember { KeyRepository.getInstance(context) }
     val keys by repo.keys.collectAsState()
@@ -75,9 +101,72 @@ fun KeysScreen(isTablet: Boolean, modifier: Modifier = Modifier) {
 
     var showGenerateDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
+    var importPrefill by remember { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<KeyRecord?>(null) }
     var selectedKey by remember { mutableStateOf<KeyRecord?>(null) }
+    var qrTarget by remember { mutableStateOf<KeyRecord?>(null) }
     var statusMsg by remember { mutableStateOf<Pair<String, StatusType>?>(null) }
+
+    // A key block handed over from the clipboard check on the Home screen.
+    LaunchedEffect(importRequest) {
+        if (importRequest != null) {
+            importPrefill = importRequest
+            showImportDialog = true
+            onImportRequestConsumed()
+        }
+    }
+
+    fun handleScanResult(contents: String) {
+        val trimmed = contents.trim()
+        if (trimmed.uppercase().startsWith(QrCode.FINGERPRINT_SCHEME)) {
+            val fp = trimmed.substring(QrCode.FINGERPRINT_SCHEME.length)
+                .replace(" ", "").uppercase()
+            val match = keys.firstOrNull { it.fingerprint.uppercase() == fp }
+            statusMsg = if (match != null) {
+                "Fingerprint verified — matches ${match.displayName}" to StatusType.SUCCESS
+            } else {
+                "No key with fingerprint ${fp.take(16)}… in your keyring — ask for the full key" to StatusType.WARNING
+            }
+            return
+        }
+        when (PgpContentDetector.detect(trimmed)) {
+            PgpContentKind.PUBLIC_KEY, PgpContentKind.PRIVATE_KEY -> scope.launch {
+                runCatching {
+                    withContext(Dispatchers.Default) {
+                        PgpService.parseKeys(trimmed).mapNotNull { PgpService.parsedKeyToRecord(it) }
+                    }
+                }.onSuccess { recs ->
+                    if (recs.isEmpty()) {
+                        statusMsg = "The QR contained no valid PGP keys" to StatusType.ERROR
+                    } else {
+                        recs.forEach { repo.addKey(it) }
+                        statusMsg = "Imported ${recs.size} key(s) from QR" to StatusType.SUCCESS
+                    }
+                }.onFailure {
+                    statusMsg = (it.message ?: "Import failed") to StatusType.ERROR
+                }
+            }
+            else -> statusMsg =
+                "The QR code doesn't contain a PGP key or fingerprint" to StatusType.WARNING
+        }
+    }
+
+    val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
+        result.contents?.let { handleScanResult(it) }
+    }
+
+    fun launchScanner() {
+        scanLauncher.launch(ScanOptions().apply {
+            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            setPrompt("Scan a key QR code")
+            setBeepEnabled(false)
+            setOrientationLocked(true)
+        })
+    }
+
+    qrTarget?.let { rec ->
+        QrDialog(record = rec, onDismiss = { qrTarget = null })
+    }
 
     if (showGenerateDialog) {
         GenerateKeyDialog(
@@ -111,6 +200,7 @@ fun KeysScreen(isTablet: Boolean, modifier: Modifier = Modifier) {
 
     if (showImportDialog) {
         ImportKeyDialog(
+            initialText = importPrefill,
             onImport = { armored ->
                 scope.launch {
                     runCatching {
@@ -164,7 +254,7 @@ fun KeysScreen(isTablet: Boolean, modifier: Modifier = Modifier) {
                 onSelect = { selectedKey = it },
                 onDelete = { deleteTarget = it },
                 onGenerate = { showGenerateDialog = true },
-                onImport = { showImportDialog = true },
+                onImport = { importPrefill = ""; showImportDialog = true },
                 modifier = Modifier.width(320.dp)
             )
             VerticalDivider()
@@ -172,6 +262,7 @@ fun KeysScreen(isTablet: Boolean, modifier: Modifier = Modifier) {
                 record = selectedKey!!,
                 onShare = { armored, name -> shareText(context, armored, name) },
                 onDelete = { deleteTarget = selectedKey },
+                onShowQr = { qrTarget = selectedKey },
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -194,12 +285,15 @@ fun KeysScreen(isTablet: Boolean, modifier: Modifier = Modifier) {
                     Text("Generate")
                 }
                 FilledTonalButton(
-                    onClick = { showImportDialog = true },
+                    onClick = { importPrefill = ""; showImportDialog = true },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Import")
+                }
+                OutlinedButton(onClick = { launchScanner() }) {
+                    Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan a key QR code", modifier = Modifier.size(18.dp))
                 }
             }
 
@@ -249,7 +343,8 @@ fun KeysScreen(isTablet: Boolean, modifier: Modifier = Modifier) {
                             isSelected = isTablet && selectedKey?.id == rec.id,
                             onSelect = { if (isTablet) selectedKey = rec },
                             onShare = { armored, name -> shareText(context, armored, name) },
-                            onDelete = { deleteTarget = rec }
+                            onDelete = { deleteTarget = rec },
+                            onShowQr = { qrTarget = rec }
                         )
                     }
                     item { Spacer(Modifier.height(8.dp)) }
@@ -321,6 +416,7 @@ private fun KeyDetail(
     record: KeyRecord,
     onShare: (String, String) -> Unit,
     onDelete: () -> Unit,
+    onShowQr: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.padding(20.dp)) {
@@ -352,6 +448,11 @@ private fun KeyDetail(
                     Text("Share Private")
                 }
             }
+            OutlinedButton(onClick = onShowQr) {
+                Icon(Icons.Default.QrCode2, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("QR")
+            }
             OutlinedButton(
                 onClick = onDelete,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
@@ -375,6 +476,7 @@ private fun KeyCard(
     onSelect: () -> Unit,
     onShare: (String, String) -> Unit,
     onDelete: () -> Unit,
+    onShowQr: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(
@@ -429,6 +531,16 @@ private fun KeyCard(
                         Text("Share Private", style = MaterialTheme.typography.labelMedium)
                     }
                 }
+                if (record.hasPublic) {
+                    OutlinedButton(
+                        onClick = onShowQr,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Default.QrCode2, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("QR", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
             }
         }
     }
@@ -479,9 +591,10 @@ private fun GenerateKeyDialog(
 @Composable
 private fun ImportKeyDialog(
     onImport: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    initialText: String = ""
 ) {
-    var armored by remember { mutableStateOf("") }
+    var armored by remember { mutableStateOf(initialText) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -499,6 +612,81 @@ private fun ImportKeyDialog(
             Button(onClick = { onImport(armored) }, enabled = armored.isNotBlank()) { Text("Import") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+// ── QR dialog ─────────────────────────────────────────────────────────────────
+
+@Composable
+private fun QrDialog(record: KeyRecord, onDismiss: () -> Unit) {
+    var showFullKey by remember { mutableStateOf(false) }
+    val keyFits = record.hasPublic &&
+        record.armoredPublic.toByteArray(Charsets.UTF_8).size <= QrCode.MAX_PAYLOAD_BYTES
+    val payload = if (showFullKey && keyFits) record.armoredPublic
+    else QrCode.FINGERPRINT_SCHEME + record.fingerprint
+
+    val bitmap by produceState<Bitmap?>(initialValue = null, payload) {
+        value = withContext(Dispatchers.Default) { QrCode.generate(payload) }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Key QR Code") },
+        text = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = !showFullKey,
+                        onClick = { showFullKey = false },
+                        label = { Text("Fingerprint") }
+                    )
+                    FilterChip(
+                        selected = showFullKey,
+                        onClick = { showFullKey = true },
+                        label = { Text("Full key") },
+                        enabled = keyFits
+                    )
+                }
+                val bmp = bitmap
+                if (bmp != null) {
+                    Image(
+                        bitmap = bmp.asImageBitmap(),
+                        contentDescription = "Key QR code",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .background(Color.White, RoundedCornerShape(12.dp))
+                            .padding(8.dp),
+                        contentScale = ContentScale.Fit,
+                        filterQuality = FilterQuality.None
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                        contentAlignment = Alignment.Center
+                    ) { CircularProgressIndicator() }
+                }
+                Text(
+                    text = record.prettyFingerprint,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = when {
+                        showFullKey -> "Scanning imports this public key."
+                        keyFits -> "Verifies the fingerprint. Switch to Full key to transfer the key itself."
+                        else -> "Verifies the fingerprint. This key is too large for a QR code — share it as text or a file instead."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } }
     )
 }
 

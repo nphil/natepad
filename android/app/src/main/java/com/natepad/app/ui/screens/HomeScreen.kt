@@ -1,5 +1,8 @@
 package com.natepad.app.ui.screens
 
+import android.content.ClipDescription
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,8 +18,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.VerifiedUser
@@ -28,12 +32,23 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.natepad.app.ui.components.SectionLabel
+import com.natepad.app.util.PgpContentDetector
+import com.natepad.app.util.PgpContentKind
 
 data class HomeAction(
     val icon: ImageVector,
@@ -55,8 +70,46 @@ fun HomeScreen(
     onModeSelected: (CryptoMode) -> Unit,
     onNavigateToKeys: () -> Unit,
     isTablet: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenWithInput: (CryptoMode, String) -> Unit = { mode, _ -> onModeSelected(mode) },
+    onImportKey: (String) -> Unit = {}
 ) {
+    val context = LocalContext.current
+    var clipboardHasText by remember { mutableStateOf(false) }
+    var clipboardNote by remember { mutableStateOf<String?>(null) }
+
+    // Cheap, silent check (no clipboard-access toast) that only looks at the clip
+    // description. Refreshed every time the app comes back to the foreground.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboardHasText =
+                    cm.primaryClipDescription?.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN) == true
+                clipboardNote = null
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    fun checkClipboard() {
+        clipboardNote = null
+        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val text = cm.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+        if (text.isBlank()) {
+            clipboardNote = "The clipboard has no text"
+            return
+        }
+        when (PgpContentDetector.detect(text)) {
+            PgpContentKind.ENCRYPTED_MESSAGE -> onOpenWithInput(CryptoMode.DECRYPT, text)
+            PgpContentKind.SIGNED_MESSAGE -> onOpenWithInput(CryptoMode.VERIFY, text)
+            PgpContentKind.PUBLIC_KEY, PgpContentKind.PRIVATE_KEY -> onImportKey(text)
+            null -> clipboardNote = "No PGP block found on the clipboard"
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -101,6 +154,69 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+        }
+
+        // ── Clipboard quick action ────────────────────────────────────────────
+        if (clipboardHasText || clipboardNote != null) {
+            Column {
+                if (clipboardHasText) {
+                    ElevatedCard(
+                        onClick = { checkClipboard() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.secondaryContainer,
+                                        RoundedCornerShape(12.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentPaste,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(22.dp),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 16.dp)
+                            ) {
+                                Text(
+                                    text = "Check Clipboard",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Open a copied PGP message, signature, or key",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                clipboardNote?.let { note ->
+                    Text(
+                        text = note,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                    )
+                }
+            }
         }
 
         // ── Operations ────────────────────────────────────────────────────────
@@ -195,7 +311,7 @@ fun HomeScreen(
                         )
                     }
                     Icon(
-                        imageVector = Icons.Default.KeyboardArrowRight,
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

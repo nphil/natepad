@@ -52,6 +52,7 @@ import com.natepad.app.ui.components.RecipientChip
 import com.natepad.app.ui.components.SectionLabel
 import com.natepad.app.ui.components.StatusCard
 import com.natepad.app.ui.components.StatusType
+import com.natepad.app.util.SecureClipboard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,6 +68,7 @@ enum class CryptoMode(val label: String) {
 @Composable
 fun CryptoScreen(
     initialMode: CryptoMode = CryptoMode.ENCRYPT,
+    initialInput: String = "",
     isTablet: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -76,6 +78,9 @@ fun CryptoScreen(
 
     var selectedMode by remember { mutableStateOf(initialMode) }
     val selectedIndex = CryptoMode.entries.indexOf(selectedMode)
+
+    // Prefill (e.g. from the clipboard check) applies only to the mode it was meant for.
+    fun prefillFor(mode: CryptoMode) = if (mode == initialMode) initialInput else ""
 
     Column(modifier = modifier.fillMaxSize()) {
         PrimaryTabRow(selectedTabIndex = selectedIndex) {
@@ -89,10 +94,10 @@ fun CryptoScreen(
         }
 
         when (selectedMode) {
-            CryptoMode.ENCRYPT -> EncryptWorkflow(keys = keys, isTablet = isTablet, modifier = Modifier.weight(1f))
-            CryptoMode.DECRYPT -> DecryptWorkflow(keys = keys, isTablet = isTablet, modifier = Modifier.weight(1f))
-            CryptoMode.SIGN -> SignWorkflow(keys = keys, isTablet = isTablet, modifier = Modifier.weight(1f))
-            CryptoMode.VERIFY -> VerifyWorkflow(keys = keys, isTablet = isTablet, modifier = Modifier.weight(1f))
+            CryptoMode.ENCRYPT -> EncryptWorkflow(keys = keys, isTablet = isTablet, initialInput = prefillFor(CryptoMode.ENCRYPT), modifier = Modifier.weight(1f))
+            CryptoMode.DECRYPT -> DecryptWorkflow(keys = keys, isTablet = isTablet, initialInput = prefillFor(CryptoMode.DECRYPT), modifier = Modifier.weight(1f))
+            CryptoMode.SIGN -> SignWorkflow(keys = keys, isTablet = isTablet, initialInput = prefillFor(CryptoMode.SIGN), modifier = Modifier.weight(1f))
+            CryptoMode.VERIFY -> VerifyWorkflow(keys = keys, isTablet = isTablet, initialInput = prefillFor(CryptoMode.VERIFY), modifier = Modifier.weight(1f))
         }
     }
 }
@@ -101,11 +106,11 @@ fun CryptoScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EncryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: Modifier = Modifier) {
+private fun EncryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, initialInput: String = "", modifier: Modifier = Modifier) {
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
 
-    var input by remember { mutableStateOf("") }
+    var input by remember { mutableStateOf(initialInput) }
     var output by remember { mutableStateOf("") }
     val recipients = remember { mutableStateListOf<KeyRecord>() }
     var signingKey by remember { mutableStateOf<KeyRecord?>(null) }
@@ -116,19 +121,28 @@ private fun EncryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: 
 
     fun doEncrypt() {
         if (recipients.isEmpty()) { status = "Select at least one recipient" to StatusType.ERROR; return }
+        if (signingKey != null && passphrase.isEmpty()) {
+            // Never fall back to an unsigned message silently.
+            status = "Enter the signing key's passphrase (or set signing to None)" to StatusType.ERROR
+            return
+        }
         scope.launch {
             status = null
             runCatching {
                 withContext(Dispatchers.Default) {
                     PgpService.encrypt(
                         input, recipients,
-                        signingKey?.takeIf { passphrase.isNotEmpty() },
+                        signingKey,
                         passphrase.ifEmpty { null }
                     )
                 }
             }.onSuccess { result ->
                 output = result
-                status = "Encrypted successfully" to StatusType.SUCCESS
+                status = if (signingKey != null) {
+                    "Signed and encrypted successfully" to StatusType.SUCCESS
+                } else {
+                    "Encrypted successfully" to StatusType.SUCCESS
+                }
             }.onFailure { e ->
                 status = (e.message ?: "Encryption failed") to StatusType.ERROR
             }
@@ -280,55 +294,61 @@ private fun EncryptControls(
 // ── Decrypt ───────────────────────────────────────────────────────────────────
 
 @Composable
-private fun DecryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: Modifier = Modifier) {
-    val clipboard = LocalClipboardManager.current
+private fun DecryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, initialInput: String = "", modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var input by remember { mutableStateOf("") }
+    var input by remember { mutableStateOf(initialInput) }
     var output by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<Pair<String, StatusType>?>(null) }
     var passphraseDialogKey by remember { mutableStateOf<KeyRecord?>(null) }
 
     val privateKeys = keys.filter { it.hasPrivate }
+    val publicKeys = keys.filter { it.hasPublic }
 
-    fun doDecryptWithPassphrase(passphrase: String) {
+    fun statusFor(sig: PgpService.SignatureStatus): Pair<String, StatusType> = when (sig) {
+        PgpService.SignatureStatus.NotSigned ->
+            "Decrypted successfully" to StatusType.SUCCESS
+        is PgpService.SignatureStatus.Valid ->
+            "Decrypted • signature by ${sig.signer ?: sig.keyId} verified" to StatusType.SUCCESS
+        is PgpService.SignatureStatus.UnknownKey ->
+            "Decrypted • signed by unknown key ${sig.keyId} (import the sender's public key to verify)" to StatusType.WARNING
+        is PgpService.SignatureStatus.Invalid ->
+            "Decrypted, but the signature is INVALID: ${sig.reason}" to StatusType.WARNING
+    }
+
+    fun runDecrypt(passphrase: String?) {
         scope.launch {
             status = null
             runCatching {
                 withContext(Dispatchers.Default) {
-                    PgpService.decrypt(input, privateKeys) { passphrase }
+                    PgpService.decrypt(input, privateKeys, publicKeys) { passphrase }
                 }
             }.onSuccess { result ->
-                output = result
-                status = "Decrypted successfully" to StatusType.SUCCESS
+                output = result.plaintext
+                status = statusFor(result.signature)
             }.onFailure { e ->
-                status = (e.message ?: "Decryption failed") to StatusType.ERROR
+                when (e) {
+                    is PgpService.PassphraseRequiredException -> passphraseDialogKey = e.record
+                    is PgpService.WrongPassphraseException -> {
+                        status = "Wrong passphrase for ${e.record.displayName} — try again" to StatusType.ERROR
+                        passphraseDialogKey = e.record
+                    }
+                    else -> status = (e.message ?: "Decryption failed") to StatusType.ERROR
+                }
             }
         }
     }
 
     fun doDecrypt() {
         if (privateKeys.isEmpty()) { status = "No private keys available" to StatusType.ERROR; return }
-        scope.launch {
-            status = null
-            runCatching {
-                withContext(Dispatchers.Default) {
-                    PgpService.decrypt(input, privateKeys) { null }
-                }
-            }.onSuccess { result ->
-                output = result
-                status = "Decrypted successfully" to StatusType.SUCCESS
-            }.onFailure {
-                if (privateKeys.isNotEmpty()) passphraseDialogKey = privateKeys.first()
-                else status = (it.message ?: "Decryption failed") to StatusType.ERROR
-            }
-        }
+        runDecrypt(null)
     }
 
     passphraseDialogKey?.let { keyRecord ->
         PassphraseDialog(
             keyName = keyRecord.displayName,
-            onConfirm = { pp -> passphraseDialogKey = null; doDecryptWithPassphrase(pp) },
+            onConfirm = { pp -> passphraseDialogKey = null; runDecrypt(pp) },
             onDismiss = { passphraseDialogKey = null }
         )
     }
@@ -355,7 +375,10 @@ private fun DecryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: 
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
-                        onClick = { clipboard.setText(AnnotatedString(output)) },
+                        onClick = {
+                            SecureClipboard.copySensitive(context, output)
+                            status = "Copied — the clipboard clears itself in 60 s" to StatusType.INFO
+                        },
                         enabled = output.isNotEmpty()
                     ) { Text("Copy") }
                     OutlinedButton(onClick = { output = ""; input = "" }) { Text("Clear") }
@@ -373,7 +396,10 @@ private fun DecryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: 
             if (output.isNotEmpty()) {
                 PgpTextField(value = output, onValueChange = {}, label = "Plaintext Output", readOnly = true)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { clipboard.setText(AnnotatedString(output)) }) { Text("Copy") }
+                    OutlinedButton(onClick = {
+                        SecureClipboard.copySensitive(context, output)
+                        status = "Copied — the clipboard clears itself in 60 s" to StatusType.INFO
+                    }) { Text("Copy") }
                     OutlinedButton(onClick = { output = ""; input = "" }) { Text("Clear") }
                 }
             }
@@ -385,11 +411,11 @@ private fun DecryptWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SignWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: Modifier = Modifier) {
+private fun SignWorkflow(keys: List<KeyRecord>, isTablet: Boolean, initialInput: String = "", modifier: Modifier = Modifier) {
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
 
-    var input by remember { mutableStateOf("") }
+    var input by remember { mutableStateOf(initialInput) }
     var output by remember { mutableStateOf("") }
     var selectedKey by remember { mutableStateOf<KeyRecord?>(null) }
     var passphrase by remember { mutableStateOf("") }
@@ -498,11 +524,11 @@ private fun SignWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: Mod
 // ── Verify ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun VerifyWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: Modifier = Modifier) {
-    val clipboard = LocalClipboardManager.current
+private fun VerifyWorkflow(keys: List<KeyRecord>, isTablet: Boolean, initialInput: String = "", modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var input by remember { mutableStateOf("") }
+    var input by remember { mutableStateOf(initialInput) }
     var output by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<Pair<String, StatusType>?>(null) }
 
@@ -544,7 +570,10 @@ private fun VerifyWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: M
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
-                    onClick = { clipboard.setText(AnnotatedString(output)) },
+                    onClick = {
+                        SecureClipboard.copySensitive(context, output)
+                        status = "Copied — the clipboard clears itself in 60 s" to StatusType.INFO
+                    },
                     enabled = output.isNotEmpty()
                 ) { Text("Copy") }
             }
@@ -559,7 +588,10 @@ private fun VerifyWorkflow(keys: List<KeyRecord>, isTablet: Boolean, modifier: M
             status?.let { (msg, type) -> StatusCard(msg, type) }
             if (output.isNotEmpty()) {
                 PgpTextField(value = output, onValueChange = {}, label = "Verified Plaintext", readOnly = true)
-                OutlinedButton(onClick = { clipboard.setText(AnnotatedString(output)) }) { Text("Copy") }
+                OutlinedButton(onClick = {
+                        SecureClipboard.copySensitive(context, output)
+                        status = "Copied — the clipboard clears itself in 60 s" to StatusType.INFO
+                    }) { Text("Copy") }
             }
         }
     }

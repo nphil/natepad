@@ -121,6 +121,10 @@ dependencies {
     // Serialization
     implementation(libs.kotlinx.serialization.json)
 
+    // QR code generation + scanning
+    implementation(libs.zxing.core)
+    implementation(libs.zxing.android.embedded)
+
     // Test
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
