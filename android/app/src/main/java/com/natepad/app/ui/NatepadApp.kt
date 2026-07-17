@@ -2,7 +2,6 @@ package com.natepad.app.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -35,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -87,100 +87,119 @@ fun NatepadApp(
         var keyImportRequest by remember { mutableStateOf<String?>(null) }
 
         // System back from a crypto workflow returns Home instead of closing the app.
-        BackHandler(enabled = showCrypto) { showCrypto = false }
+        BackHandler(enabled = showCrypto && !isLocked) { showCrypto = false }
+
+        // Drafts persist, passphrases don't: wipe typed passphrases whenever the
+        // editor closes so secrets never sit in memory-resident state longer than
+        // the editing session.
+        LaunchedEffect(showCrypto) {
+            if (!showCrypto) {
+                cryptoState.encrypt.passphrase = ""
+                cryptoState.sign.passphrase = ""
+            }
+        }
 
         val focusManager = LocalFocusManager.current
 
-        // NavigationSuiteScaffold picks the right navigation UI from the window size
-        // class: bottom bar on compact windows (phones, small split-screen windows),
-        // navigation rail on medium/expanded (tablets, desktop windows) — and keeps
-        // adapting as the window is resized.
-        NavigationSuiteScaffold(
-            navigationSuiteItems = {
-                NavDestination.entries.forEach { dest ->
-                    item(
-                        selected = currentDest == dest,
-                        onClick = {
-                            // Re-selecting Notepad pops the editor back to the dashboard.
-                            if (dest == NavDestination.HOME && currentDest == NavDestination.HOME) {
-                                showCrypto = false
-                            }
-                            currentDest = dest
-                            if (dest != NavDestination.HOME) showCrypto = false
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = if (currentDest == dest) dest.iconSelected else dest.icon,
-                                contentDescription = dest.label
-                            )
-                        },
-                        label = { Text(dest.label) }
-                    )
-                }
-            }
-        ) {
-            val screen = ScreenState(currentDest, currentDest == NavDestination.HOME && showCrypto)
-
-            AnimatedContent(
-                targetState = screen,
-                transitionSpec = { screenTransition() },
-                label = "screen",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .imePadding()
-                    .pointerInput(Unit) {
-                        detectTapGestures(onTap = { focusManager.clearFocus() })
+        // Main app UI, declared as a lambda so it captures the state above.
+        val appUi: @Composable () -> Unit = {
+            // NavigationSuiteScaffold picks the right navigation UI from the window size
+            // class: bottom bar on compact windows (phones, small split-screen windows),
+            // navigation rail on medium/expanded (tablets, desktop windows) — and keeps
+            // adapting as the window is resized.
+            NavigationSuiteScaffold(
+                navigationSuiteItems = {
+                    NavDestination.entries.forEach { dest ->
+                        item(
+                            selected = currentDest == dest,
+                            onClick = {
+                                // Re-selecting Notepad pops the editor back to the dashboard.
+                                if (dest == NavDestination.HOME && currentDest == NavDestination.HOME) {
+                                    showCrypto = false
+                                }
+                                currentDest = dest
+                                if (dest != NavDestination.HOME) showCrypto = false
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = if (currentDest == dest) dest.iconSelected else dest.icon,
+                                    contentDescription = dest.label
+                                )
+                            },
+                            label = { Text(dest.label) }
+                        )
                     }
-            ) { target ->
-                when {
-                    target.crypto -> CryptoScreen(
-                        states = cryptoState,
-                        initialMode = cryptoMode,
-                        onBack = { showCrypto = false },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    target.dest == NavDestination.HOME -> HomeScreen(
-                        onModeSelected = { mode ->
-                            cryptoMode = mode; showCrypto = true
-                        },
-                        onNavigateToKeys = { currentDest = NavDestination.KEYS },
-                        modifier = Modifier.fillMaxSize(),
-                        onOpenWithInput = { mode, text ->
-                            cryptoMode = mode
-                            cryptoState.stateFor(mode).let { st ->
-                                st.input = text
-                                st.output = ""
-                                st.status = null
-                            }
-                            showCrypto = true
-                        },
-                        onImportKey = { text ->
-                            keyImportRequest = text; currentDest = NavDestination.KEYS
+                }
+            ) {
+                val screen = ScreenState(currentDest, currentDest == NavDestination.HOME && showCrypto)
+
+                AnimatedContent(
+                    targetState = screen,
+                    transitionSpec = { screenTransition() },
+                    label = "screen",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .imePadding()
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = { focusManager.clearFocus() })
                         }
-                    )
-                    target.dest == NavDestination.KEYS -> KeysScreen(
-                        modifier = Modifier.fillMaxSize(),
-                        importRequest = keyImportRequest,
-                        onImportRequestConsumed = { keyImportRequest = null }
-                    )
-                    else -> SettingsScreen(
-                        selectedTheme = selectedTheme,
-                        onThemeChange = onThemeChange,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                ) { target ->
+                    when {
+                        target.crypto -> CryptoScreen(
+                            states = cryptoState,
+                            initialMode = cryptoMode,
+                            onBack = { showCrypto = false },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        target.dest == NavDestination.HOME -> HomeScreen(
+                            onModeSelected = { mode ->
+                                cryptoMode = mode; showCrypto = true
+                            },
+                            onNavigateToKeys = { currentDest = NavDestination.KEYS },
+                            modifier = Modifier.fillMaxSize(),
+                            onOpenWithInput = { mode, text ->
+                                cryptoMode = mode
+                                cryptoState.stateFor(mode).let { st ->
+                                    st.input = text
+                                    st.output = ""
+                                    st.status = null
+                                }
+                                showCrypto = true
+                            },
+                            onImportKey = { text ->
+                                keyImportRequest = text; currentDest = NavDestination.KEYS
+                            }
+                        )
+                        target.dest == NavDestination.KEYS -> KeysScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            importRequest = keyImportRequest,
+                            onImportRequestConsumed = { keyImportRequest = null }
+                        )
+                        else -> SettingsScreen(
+                            selectedTheme = selectedTheme,
+                            onThemeChange = onThemeChange,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
         }
 
-        // Lock screen draws OVER the app instead of replacing it, so locking never
-        // unmounts the UI — drafts and navigation state survive lock/unlock cycles.
-        // The overlay is opaque; nothing beneath it is visible or interactive.
-        AnimatedVisibility(
-            visible = isLocked,
-            enter = fadeIn(NatepadMotion.effectsDefault()),
-            exit = fadeOut(NatepadMotion.effectsDefault())
-        ) {
-            LockScreen(showUnlockButton = showUnlockButton, onUnlock = onUnlock)
+        // The lock swap happens BELOW every remember/rememberSaveable above, so
+        // locking unmounts the app UI (no touch passthrough, nothing readable by
+        // accessibility services) while drafts and navigation state survive.
+        AnimatedContent(
+            targetState = isLocked,
+            transitionSpec = {
+                fadeIn(NatepadMotion.effectsDefault()) togetherWith fadeOut(NatepadMotion.effectsFast())
+            },
+            label = "lock"
+        ) { locked ->
+            if (locked) {
+                LockScreen(showUnlockButton = showUnlockButton, onUnlock = onUnlock)
+            } else {
+                appUi()
+            }
         }
     }
 }

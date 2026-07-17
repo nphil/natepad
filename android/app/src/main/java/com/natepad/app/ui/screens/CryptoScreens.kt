@@ -54,6 +54,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -65,6 +66,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
@@ -151,10 +153,18 @@ internal fun CryptoScreen(
     val repo = remember { KeyRepository.getInstance(context) }
     val keys by repo.keys.collectAsState()
 
-    var selectedMode by remember { mutableStateOf(initialMode) }
+    var selectedMode by remember(initialMode) { mutableStateOf(initialMode) }
     // Lives at screen level (outside AnimatedContent) so an in-flight encrypt/decrypt
     // isn't cancelled by switching mode tabs mid-operation.
     val opScope = rememberCoroutineScope()
+
+    // Drafts outlive the keyring: drop selections that point at deleted keys.
+    LaunchedEffect(keys) {
+        val ids = keys.map { it.id }.toSet()
+        states.encrypt.recipients.removeAll { it.id !in ids }
+        states.encrypt.signingKey?.let { if (it.id !in ids) states.encrypt.signingKey = null }
+        states.sign.selectedKey?.let { if (it.id !in ids) states.sign.selectedKey = null }
+    }
 
     // Expanded windows (tablets in landscape, large desktop windows) get the
     // input/output side by side; everything narrower stacks vertically.
@@ -757,6 +767,7 @@ private fun PassphraseField(
     onValueChange: (String) -> Unit,
     label: String
 ) {
+    val focusManager = LocalFocusManager.current
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -765,7 +776,7 @@ private fun PassphraseField(
         singleLine = true,
         shape = MaterialTheme.shapes.medium,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { }),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
         modifier = Modifier.fillMaxWidth()
     )
 }
