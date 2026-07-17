@@ -343,17 +343,25 @@ private fun KeyListPane(
                 .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Button(onClick = onGenerate, modifier = Modifier.weight(1f)) {
+            Button(
+                onClick = onGenerate,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 12.dp)
+            ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Generate")
+                Text("Generate", maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
             }
-            FilledTonalButton(onClick = onImport, modifier = Modifier.weight(1f)) {
+            FilledTonalButton(
+                onClick = onImport,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 12.dp)
+            ) {
                 Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Import")
+                Text("Import", maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
             }
-            OutlinedButton(onClick = onScan) {
+            OutlinedButton(onClick = onScan, contentPadding = PaddingValues(horizontal = 16.dp)) {
                 Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan a key QR code", modifier = Modifier.size(18.dp))
             }
         }

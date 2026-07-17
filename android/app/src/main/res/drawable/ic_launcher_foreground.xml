@@ -5,30 +5,28 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <!--
-        Safe zone: 18..90 (72×72 centred). Lock fills ~80% of safe zone.
-        Design box: 54 wide × 68 tall.  Local centre: (27, 34).
-        translateX = 54−27 = 27,  translateY = 54−34 = 20  (slight lift for visual weight).
-        Final bbox: x[27..81]  y[20..88]  — entirely inside safe zone.
+        Padlock centred on (54,54) and kept well inside the 66dp adaptive-icon
+        safe zone (radius ≈33 from centre) so no launcher mask clips it.
+        Extremes: shackle top y≈26, body bottom y=79, body sides x[35..73].
+        Farthest corner (35,79) is ~31 from centre — comfortably inside.
     -->
-    <group android:translateX="27" android:translateY="20">
-        <!-- Shackle: arch top at y=0, posts connect to body at y=26 -->
-        <path
-            android:fillColor="#00000000"
-            android:strokeColor="#FFFFFFFF"
-            android:strokeWidth="5.5"
-            android:strokeLineCap="round"
-            android:pathData="M9,26 L9,15 Q9,0 27,0 Q45,0 45,15 L45,26" />
-        <!-- Lock body: rounded rect x[0..54] y[26..68] rx=7 -->
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M7,26 L47,26 Q54,26 54,33 L54,61 Q54,68 47,68 L7,68 Q0,68 0,61 L0,33 Q0,26 7,26 Z" />
-        <!-- Keyhole circle: cx=27 cy=44 r=7.5 (dual-arc approximation) -->
-        <path
-            android:fillColor="#FF6750A4"
-            android:pathData="M27,36.5 A7.5,7.5 0 1 0 27,51.5 A7.5,7.5 0 1 0 27,36.5 Z" />
-        <!-- Keyhole stem -->
-        <path
-            android:fillColor="#FF6750A4"
-            android:pathData="M24,51.5 L30,51.5 L28.5,60 L25.5,60 Z" />
-    </group>
+    <!-- Shackle: arch from body top (y=53) up to y=29 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5.5"
+        android:strokeLineCap="round"
+        android:pathData="M42,53 L42,41 Q42,29 54,29 Q66,29 66,41 L66,53" />
+    <!-- Lock body: rounded rect x[35..73] y[53..79] rx=6 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M41,53 L67,53 Q73,53 73,59 L73,73 Q73,79 67,79 L41,79 Q35,79 35,73 L35,59 Q35,53 41,53 Z" />
+    <!-- Keyhole circle: cx=54 cy=63 r=5 -->
+    <path
+        android:fillColor="#FF4527A0"
+        android:pathData="M54,58 A5,5 0 1 0 54,68 A5,5 0 1 0 54,58 Z" />
+    <!-- Keyhole stem -->
+    <path
+        android:fillColor="#FF4527A0"
+        android:pathData="M51.5,67 L56.5,67 L55,75 L53,75 Z" />
 </vector>

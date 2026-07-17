@@ -22,58 +22,187 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.abs
 
 // ── Theme selection ───────────────────────────────────────────────────────────
+//
+// Each named theme is defined by three seed colours (primary / secondary /
+// tertiary). Full Material 3 light *and* dark schemes are generated from those
+// seeds by `buildScheme()` below (tonal palettes derived in HSL space), so every
+// theme reacts to the system light/dark setting and stays internally consistent.
+// `Material You` is special — it pulls the wallpaper palette on Android 12+.
+//
+// Palettes are drawn from popular, well-loved colour schemes (Nord, Gruvbox,
+// Solarized, Tokyo Night, Catppuccin, Rosé Pine, Dracula, …) plus a spread of
+// vibrant hues so no two themes read alike.
 
-enum class AppTheme(val displayName: String) {
-    MATERIAL_YOU("Material You"),
-    PURPLE("Purple"),
-    OCEAN("Ocean"),
-    FOREST("Forest"),
-    DRACULA("Dracula"),
-    SYNTHWAVE("Synthwave"),
-    LEMONADE("Lemonade");
+internal data class ThemeSeeds(val primary: Long, val secondary: Long, val tertiary: Long)
 
-    val swatchPrimaryColor: Color get() = when (this) {
-        MATERIAL_YOU -> Color(0xFF6750A4)
-        PURPLE       -> Color(0xFF6750A4)
-        OCEAN        -> Color(0xFF47C8E8)
-        FOREST       -> Color(0xFF55C774)
-        DRACULA      -> Color(0xFFFF79C6)
-        SYNTHWAVE    -> Color(0xFFF92AAD)
-        LEMONADE     -> Color(0xFF4A7C0F)
-    }
-
-    val swatchBgColor: Color get() = when (this) {
-        MATERIAL_YOU -> Color(0xFF1C1B1F)
-        PURPLE       -> Color(0xFF381E72)
-        OCEAN        -> Color(0xFF0F2030)
-        FOREST       -> Color(0xFF111913)
-        DRACULA      -> Color(0xFF282A36)
-        SYNTHWAVE    -> Color(0xFF2B213A)
-        LEMONADE     -> Color(0xFFF8FFF0)
-    }
+enum class AppTheme(val displayName: String, internal val seeds: ThemeSeeds?) {
+    MATERIAL_YOU("Material You", null),
+    PURPLE      ("Purple",       ThemeSeeds(0xFF7C4DFF, 0xFF9575CD, 0xFFFF80AB)),
+    OCEAN       ("Ocean",        ThemeSeeds(0xFF00BCD4, 0xFF4DD0E1, 0xFF5C6BC0)),
+    FOREST      ("Forest",       ThemeSeeds(0xFF43A047, 0xFF66BB6A, 0xFF9CCC65)),
+    DRACULA     ("Dracula",      ThemeSeeds(0xFFFF79C6, 0xFFBD93F9, 0xFF8BE9FD)),
+    SYNTHWAVE   ("Synthwave",    ThemeSeeds(0xFFF92AAD, 0xFF72F1F1, 0xFFFF7EDB)),
+    LEMONADE    ("Lemonade",     ThemeSeeds(0xFF8BC34A, 0xFFC0CA33, 0xFFCDDC39)),
+    NORD        ("Nord",         ThemeSeeds(0xFF88C0D0, 0xFF81A1C1, 0xFFB48EAD)),
+    GRUVBOX     ("Gruvbox",      ThemeSeeds(0xFFFE8019, 0xFFB8BB26, 0xFFFABD2F)),
+    SOLARIZED   ("Solarized",    ThemeSeeds(0xFF268BD2, 0xFF2AA198, 0xFFB58900)),
+    MONOKAI     ("Monokai",      ThemeSeeds(0xFFA6E22E, 0xFFF92672, 0xFF66D9EF)),
+    TOKYO_NIGHT ("Tokyo Night",  ThemeSeeds(0xFF7AA2F7, 0xFFBB9AF7, 0xFF7DCFFF)),
+    CATPPUCCIN  ("Catppuccin",   ThemeSeeds(0xFFCBA6F7, 0xFFF5C2E7, 0xFF94E2D5)),
+    ROSE_PINE   ("Rosé Pine",    ThemeSeeds(0xFFEB6F92, 0xFFC4A7E7, 0xFF9CCFD8)),
+    EVERFOREST  ("Everforest",   ThemeSeeds(0xFFA7C080, 0xFF83C092, 0xFFE69875)),
+    ONE_DARK    ("One Dark",     ThemeSeeds(0xFF61AFEF, 0xFFC678DD, 0xFF98C379)),
+    SUNSET      ("Sunset",       ThemeSeeds(0xFFFF6E40, 0xFFFF4081, 0xFFFFAB40)),
+    SAKURA      ("Sakura",       ThemeSeeds(0xFFFF6F9C, 0xFFFF9EC4, 0xFFCE93D8)),
+    MIDNIGHT    ("Midnight",     ThemeSeeds(0xFF5C6BC0, 0xFF7986CB, 0xFF64B5F6)),
+    CRIMSON     ("Crimson",      ThemeSeeds(0xFFE63950, 0xFFFF6B6B, 0xFFFF8A65)),
+    AMBER       ("Amber",        ThemeSeeds(0xFFFFB300, 0xFFFFA000, 0xFFFFD54F)),
+    EMERALD     ("Emerald",      ThemeSeeds(0xFF10B981, 0xFF34D399, 0xFF6EE7B7)),
+    SLATE       ("Slate",        ThemeSeeds(0xFF64748B, 0xFF94A3B8, 0xFF38BDF8)),
+    MINT        ("Mint",         ThemeSeeds(0xFF3EB489, 0xFF66D9AB, 0xFF80CBC4)),
+    GRAPE       ("Grape",        ThemeSeeds(0xFFB24BF3, 0xFFD580FF, 0xFFF361DC)),
+    CORAL       ("Coral",        ThemeSeeds(0xFFFF6F61, 0xFFFF8A75, 0xFFFFB199)),
+    SKY         ("Sky",          ThemeSeeds(0xFF38BDF8, 0xFF7DD3FC, 0xFF818CF8)),
+    MOCHA       ("Mocha",        ThemeSeeds(0xFFA1887F, 0xFFBCAAA4, 0xFFD7A86E)),
+    LAVENDER    ("Lavender",     ThemeSeeds(0xFFB39DDB, 0xFFCE93D8, 0xFF9FA8DA)),
+    ROSE_GOLD   ("Rose Gold",    ThemeSeeds(0xFFE8A0A8, 0xFFF0C9A0, 0xFFD98E9C)),
+    AURORA      ("Aurora",       ThemeSeeds(0xFF1DE9B6, 0xFF64FFDA, 0xFF40C4FF));
 }
 
 @Composable
-fun AppTheme.resolveColorScheme(darkTheme: Boolean): ColorScheme = when (this) {
-    AppTheme.MATERIAL_YOU -> {
+fun AppTheme.resolveColorScheme(darkTheme: Boolean): ColorScheme {
+    if (this == AppTheme.MATERIAL_YOU) {
         val context = LocalContext.current
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         } else {
-            if (darkTheme) PurpleDarkColorScheme else PurpleLightColorScheme
+            buildScheme(AppTheme.PURPLE.seeds!!, darkTheme)
         }
     }
-    AppTheme.PURPLE    -> if (darkTheme) PurpleDarkColorScheme else PurpleLightColorScheme
-    AppTheme.OCEAN     -> OceanColorScheme.withDerivedContainers(dark = true)
-    AppTheme.FOREST    -> ForestColorScheme.withDerivedContainers(dark = true)
-    AppTheme.DRACULA   -> DraculaColorScheme.withDerivedContainers(dark = true)
-    AppTheme.SYNTHWAVE -> SynthwaveColorScheme.withDerivedContainers(dark = true)
-    AppTheme.LEMONADE  -> (if (darkTheme) LemonadeDarkColorScheme.withDerivedContainers(dark = true)
-                           else LemonadeLightColorScheme.withDerivedContainers(dark = false))
+    return buildScheme(seeds!!, darkTheme)
 }
 
+// ── Tonal palette generation ─────────────────────────────────────────────────
+//
+// A full M3 scheme is built from three accent seeds by taking each seed's hue &
+// saturation and re-deriving Material's standard tone assignments in HSL space
+// (dark: primary T80 / onPrimary T20 / container T30 / onContainer T90; light:
+// primary T40 / container T90 / onContainer T10, etc.). Neutrals reuse the
+// primary hue at a very low saturation so surfaces carry a subtle brand tint,
+// the way real Material 3 schemes do.
+
+private fun Color.hsl(): FloatArray {
+    val r = red; val g = green; val b = blue
+    val max = maxOf(r, g, b); val min = minOf(r, g, b)
+    val l = (max + min) / 2f
+    val d = max - min
+    val s = if (d == 0f) 0f else d / (1f - abs(2f * l - 1f))
+    val h = when {
+        d == 0f  -> 0f
+        max == r -> 60f * ((((g - b) / d) % 6f + 6f) % 6f)
+        max == g -> 60f * (((b - r) / d) + 2f)
+        else     -> 60f * (((r - g) / d) + 4f)
+    }
+    return floatArrayOf(h, s, l)
+}
+
+private fun hslColor(h: Float, s: Float, l: Float): Color {
+    val c = (1f - abs(2f * l - 1f)) * s
+    val hp = (((h % 360f) + 360f) % 360f) / 60f
+    val x = c * (1f - abs(hp % 2f - 1f))
+    val (r1, g1, b1) = when {
+        hp < 1f -> Triple(c, x, 0f)
+        hp < 2f -> Triple(x, c, 0f)
+        hp < 3f -> Triple(0f, c, x)
+        hp < 4f -> Triple(0f, x, c)
+        hp < 5f -> Triple(x, 0f, c)
+        else    -> Triple(c, 0f, x)
+    }
+    val m = l - c / 2f
+    return Color((r1 + m).coerceIn(0f, 1f), (g1 + m).coerceIn(0f, 1f), (b1 + m).coerceIn(0f, 1f))
+}
+
+/** Tone of a seed at a target lightness, keeping its hue and (optionally scaled) saturation. */
+private fun tone(seed: Color, l: Float, satScale: Float = 1f): Color {
+    val hsl = seed.hsl()
+    return hslColor(hsl[0], (hsl[1] * satScale).coerceIn(0f, 1f), l)
+}
+
+private fun buildScheme(seeds: ThemeSeeds, dark: Boolean): ColorScheme {
+    val primary = Color(seeds.primary)
+    val secondary = Color(seeds.secondary)
+    val tertiary = Color(seeds.tertiary)
+    val nHue = primary.hsl()[0]
+    // Neutral / neutral-variant tones share the primary hue at low chroma.
+    fun n(l: Float) = hslColor(nHue, 0.05f, l)
+    fun nv(l: Float) = hslColor(nHue, 0.12f, l)
+
+    val scheme = if (dark) darkColorScheme(
+        primary = tone(primary, 0.80f),
+        onPrimary = tone(primary, 0.18f),
+        primaryContainer = tone(primary, 0.32f),
+        onPrimaryContainer = tone(primary, 0.90f),
+        inversePrimary = tone(primary, 0.40f),
+        secondary = tone(secondary, 0.80f, 0.55f),
+        onSecondary = tone(secondary, 0.18f, 0.55f),
+        secondaryContainer = tone(secondary, 0.30f, 0.55f),
+        onSecondaryContainer = tone(secondary, 0.90f, 0.55f),
+        tertiary = tone(tertiary, 0.80f),
+        onTertiary = tone(tertiary, 0.18f),
+        tertiaryContainer = tone(tertiary, 0.32f),
+        onTertiaryContainer = tone(tertiary, 0.90f),
+        error = Color(0xFFFFB4AB),
+        onError = Color(0xFF690005),
+        errorContainer = Color(0xFF93000A),
+        onErrorContainer = Color(0xFFFFDAD6),
+        background = n(0.09f),
+        onBackground = n(0.90f),
+        surface = n(0.09f),
+        onSurface = n(0.90f),
+        surfaceVariant = nv(0.28f),
+        onSurfaceVariant = nv(0.80f),
+        outline = nv(0.58f),
+        outlineVariant = nv(0.28f),
+        inverseSurface = n(0.90f),
+        inverseOnSurface = n(0.20f),
+        surfaceTint = tone(primary, 0.80f),
+        scrim = Color.Black,
+    ) else lightColorScheme(
+        primary = tone(primary, 0.40f),
+        onPrimary = Color.White,
+        primaryContainer = tone(primary, 0.90f),
+        onPrimaryContainer = tone(primary, 0.10f),
+        inversePrimary = tone(primary, 0.80f),
+        secondary = tone(secondary, 0.40f, 0.55f),
+        onSecondary = Color.White,
+        secondaryContainer = tone(secondary, 0.90f, 0.55f),
+        onSecondaryContainer = tone(secondary, 0.10f, 0.55f),
+        tertiary = tone(tertiary, 0.40f),
+        onTertiary = Color.White,
+        tertiaryContainer = tone(tertiary, 0.90f),
+        onTertiaryContainer = tone(tertiary, 0.10f),
+        error = Color(0xFFBA1A1A),
+        onError = Color.White,
+        errorContainer = Color(0xFFFFDAD6),
+        onErrorContainer = Color(0xFF410002),
+        background = n(0.985f),
+        onBackground = n(0.10f),
+        surface = n(0.985f),
+        onSurface = n(0.10f),
+        surfaceVariant = nv(0.90f),
+        onSurfaceVariant = nv(0.30f),
+        outline = nv(0.50f),
+        outlineVariant = nv(0.80f),
+        inverseSurface = n(0.20f),
+        inverseOnSurface = n(0.95f),
+        surfaceTint = tone(primary, 0.40f),
+        scrim = Color.Black,
+    )
+    return scheme.withDerivedContainers(dark)
+}
 
 // ── Surface container derivation ─────────────────────────────────────────────
 //
@@ -102,202 +231,6 @@ private fun ColorScheme.withDerivedContainers(dark: Boolean): ColorScheme {
         surfaceContainerHighest = lerp(bg, on, 0.10f),
     )
 }
-
-// ── Purple (default brand) ────────────────────────────────────────────────────
-
-private val PurpleLightColorScheme = lightColorScheme(
-    primary = Color(0xFF6750A4),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFEADDFF),
-    onPrimaryContainer = Color(0xFF21005D),
-    secondary = Color(0xFF625B71),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFE8DEF8),
-    onSecondaryContainer = Color(0xFF1D192B),
-    tertiary = Color(0xFF7D5260),
-    onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFFFD8E4),
-    onTertiaryContainer = Color(0xFF31111D),
-    error = Color(0xFFB3261E),
-    background = Color(0xFFFFFBFE),
-    onBackground = Color(0xFF1C1B1F),
-    surface = Color(0xFFFFFBFE),
-    onSurface = Color(0xFF1C1B1F),
-    surfaceVariant = Color(0xFFE7E0EC),
-    onSurfaceVariant = Color(0xFF49454F),
-    outline = Color(0xFF79747E),
-)
-
-private val PurpleDarkColorScheme = darkColorScheme(
-    primary = Color(0xFFD0BCFF),
-    onPrimary = Color(0xFF381E72),
-    primaryContainer = Color(0xFF4F378B),
-    onPrimaryContainer = Color(0xFFEADDFF),
-    secondary = Color(0xFFCCC2DC),
-    onSecondary = Color(0xFF332D41),
-    secondaryContainer = Color(0xFF4A4458),
-    onSecondaryContainer = Color(0xFFE8DEF8),
-    tertiary = Color(0xFFEFB8C8),
-    onTertiary = Color(0xFF492532),
-    tertiaryContainer = Color(0xFF633B48),
-    onTertiaryContainer = Color(0xFFFFD8E4),
-    error = Color(0xFFF2B8B5),
-    background = Color(0xFF1C1B1F),
-    onBackground = Color(0xFFE6E1E5),
-    surface = Color(0xFF1C1B1F),
-    onSurface = Color(0xFFE6E1E5),
-    surfaceVariant = Color(0xFF49454F),
-    onSurfaceVariant = Color(0xFFCAC4D0),
-    outline = Color(0xFF938F99),
-)
-
-// ── Ocean ─────────────────────────────────────────────────────────────────────
-
-private val OceanColorScheme = darkColorScheme(
-    primary = Color(0xFF47C8E8),
-    onPrimary = Color(0xFF003547),
-    primaryContainer = Color(0xFF004D64),
-    onPrimaryContainer = Color(0xFFB3EEFF),
-    secondary = Color(0xFF7BBCCF),
-    onSecondary = Color(0xFF0A3040),
-    secondaryContainer = Color(0xFF1A4055),
-    onSecondaryContainer = Color(0xFFC8E8F5),
-    tertiary = Color(0xFF9B8DC8),
-    onTertiary = Color(0xFF1A103F),
-    tertiaryContainer = Color(0xFF281A58),
-    onTertiaryContainer = Color(0xFFD0C8F5),
-    error = Color(0xFFFF8A80),
-    background = Color(0xFF0F2030),
-    onBackground = Color(0xFFC8DDE8),
-    surface = Color(0xFF162B3F),
-    onSurface = Color(0xFFC8DDE8),
-    surfaceVariant = Color(0xFF1E3A50),
-    onSurfaceVariant = Color(0xFF8BAFC3),
-    outline = Color(0xFF4A7D95),
-)
-
-// ── Forest ────────────────────────────────────────────────────────────────────
-
-private val ForestColorScheme = darkColorScheme(
-    primary = Color(0xFF55C774),
-    onPrimary = Color(0xFF003315),
-    primaryContainer = Color(0xFF004D1F),
-    onPrimaryContainer = Color(0xFF9AEFB0),
-    secondary = Color(0xFF7FB88C),
-    onSecondary = Color(0xFF0A2713),
-    secondaryContainer = Color(0xFF1A3A24),
-    onSecondaryContainer = Color(0xFFC0E8CA),
-    tertiary = Color(0xFFA0C070),
-    onTertiary = Color(0xFF243305),
-    tertiaryContainer = Color(0xFF354D0C),
-    onTertiaryContainer = Color(0xFFD5EDAA),
-    error = Color(0xFFFF8A80),
-    background = Color(0xFF111913),
-    onBackground = Color(0xFFD0D8D0),
-    surface = Color(0xFF161F17),
-    onSurface = Color(0xFFD0D8D0),
-    surfaceVariant = Color(0xFF243028),
-    onSurfaceVariant = Color(0xFF90B098),
-    outline = Color(0xFF507860),
-)
-
-// ── Dracula ───────────────────────────────────────────────────────────────────
-
-private val DraculaColorScheme = darkColorScheme(
-    primary = Color(0xFFFF79C6),
-    onPrimary = Color(0xFF4D0030),
-    primaryContainer = Color(0xFF6D0044),
-    onPrimaryContainer = Color(0xFFFFD0E8),
-    secondary = Color(0xFFBD93F9),
-    onSecondary = Color(0xFF2D0060),
-    secondaryContainer = Color(0xFF440088),
-    onSecondaryContainer = Color(0xFFE8D0FF),
-    tertiary = Color(0xFF8BE9FD),
-    onTertiary = Color(0xFF003845),
-    tertiaryContainer = Color(0xFF005060),
-    onTertiaryContainer = Color(0xFFC0FAFF),
-    error = Color(0xFFFF5555),
-    background = Color(0xFF282A36),
-    onBackground = Color(0xFFF8F8F2),
-    surface = Color(0xFF2C2E3F),
-    onSurface = Color(0xFFF8F8F2),
-    surfaceVariant = Color(0xFF373A50),
-    onSurfaceVariant = Color(0xFFCCCDD8),
-    outline = Color(0xFF6272A4),
-)
-
-// ── Synthwave ─────────────────────────────────────────────────────────────────
-
-private val SynthwaveColorScheme = darkColorScheme(
-    primary = Color(0xFFF92AAD),
-    onPrimary = Color(0xFF4D0030),
-    primaryContainer = Color(0xFF7A0048),
-    onPrimaryContainer = Color(0xFFFFD0E8),
-    secondary = Color(0xFF72F1F1),
-    onSecondary = Color(0xFF003838),
-    secondaryContainer = Color(0xFF005050),
-    onSecondaryContainer = Color(0xFFC0FBFB),
-    tertiary = Color(0xFFFF7EDB),
-    onTertiary = Color(0xFF4D0040),
-    tertiaryContainer = Color(0xFF700060),
-    onTertiaryContainer = Color(0xFFFFD0F8),
-    error = Color(0xFFFF5555),
-    background = Color(0xFF2B213A),
-    onBackground = Color(0xFFF5F3FF),
-    surface = Color(0xFF332848),
-    onSurface = Color(0xFFF5F3FF),
-    surfaceVariant = Color(0xFF453060),
-    onSurfaceVariant = Color(0xFFC8C0DC),
-    outline = Color(0xFF7060A0),
-)
-
-// ── Lemonade ──────────────────────────────────────────────────────────────────
-
-private val LemonadeLightColorScheme = lightColorScheme(
-    primary = Color(0xFF4A7C0F),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFC8F07A),
-    onPrimaryContainer = Color(0xFF142300),
-    secondary = Color(0xFF547800),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFCEF07A),
-    onSecondaryContainer = Color(0xFF192200),
-    tertiary = Color(0xFF376C00),
-    onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFB0F072),
-    onTertiaryContainer = Color(0xFF0C2000),
-    error = Color(0xFFB3261E),
-    background = Color(0xFFF8FFF0),
-    onBackground = Color(0xFF1C2100),
-    surface = Color(0xFFF8FFF0),
-    onSurface = Color(0xFF1C2100),
-    surfaceVariant = Color(0xFFD8EDA8),
-    onSurfaceVariant = Color(0xFF384D1A),
-    outline = Color(0xFF5C7840),
-)
-
-private val LemonadeDarkColorScheme = darkColorScheme(
-    primary = Color(0xFF9ADA4A),
-    onPrimary = Color(0xFF203A00),
-    primaryContainer = Color(0xFF315700),
-    onPrimaryContainer = Color(0xFFB5F564),
-    secondary = Color(0xFFA8D456),
-    onSecondary = Color(0xFF1E3500),
-    secondaryContainer = Color(0xFF2C4D00),
-    onSecondaryContainer = Color(0xFFC3F070),
-    tertiary = Color(0xFF8CC840),
-    onTertiary = Color(0xFF1A2E00),
-    tertiaryContainer = Color(0xFF274500),
-    onTertiaryContainer = Color(0xFFA8E858),
-    error = Color(0xFFF2B8B5),
-    background = Color(0xFF141F00),
-    onBackground = Color(0xFFD8EDA0),
-    surface = Color(0xFF141F00),
-    onSurface = Color(0xFFD8EDA0),
-    surfaceVariant = Color(0xFF2A3A10),
-    onSurfaceVariant = Color(0xFFA0B878),
-    outline = Color(0xFF708848),
-)
 
 // ── Typography ────────────────────────────────────────────────────────────────
 

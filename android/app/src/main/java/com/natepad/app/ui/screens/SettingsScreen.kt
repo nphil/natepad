@@ -10,16 +10,18 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -61,6 +63,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.natepad.app.data.BackupService
@@ -72,6 +75,7 @@ import com.natepad.app.ui.components.contentWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import com.natepad.app.ui.theme.AppTheme
+import com.natepad.app.ui.theme.resolveColorScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -82,6 +86,7 @@ import java.util.Locale
 
 private const val PREF_BIOMETRIC_LOCK = "biometric_lock"
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     selectedTheme: AppTheme = AppTheme.MATERIAL_YOU,
@@ -253,13 +258,16 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                val dark = isSystemInDarkTheme()
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     AppTheme.values().forEach { theme ->
                         ThemeSwatch(
                             theme = theme,
+                            dark = dark,
                             selected = selectedTheme == theme,
                             onClick = { onThemeChange(theme) }
                         )
@@ -418,7 +426,12 @@ private fun BackupPasswordDialog(
 }
 
 @Composable
-private fun ThemeSwatch(theme: AppTheme, selected: Boolean, onClick: () -> Unit) {
+private fun ThemeSwatch(theme: AppTheme, dark: Boolean, selected: Boolean, onClick: () -> Unit) {
+    // Preview the theme with its own generated palette so light/dark reads true.
+    val scheme = theme.resolveColorScheme(dark)
+    val swatchBg = scheme.surfaceContainerHighest
+    val swatchDot = scheme.primary
+
     val borderWidth by animateDpAsState(
         targetValue = if (selected) 3.dp else 1.5.dp, label = "swatch_border"
     )
@@ -430,15 +443,16 @@ private fun ThemeSwatch(theme: AppTheme, selected: Boolean, onClick: () -> Unit)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .width(60.dp)
+            .width(80.dp)
             .clip(MaterialTheme.shapes.small)
             .clickable(onClick = onClick)
+            .padding(vertical = 4.dp)
     ) {
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(theme.swatchBgColor)
+                .background(swatchBg)
                 .border(width = borderWidth, color = borderColor, shape = CircleShape),
             contentAlignment = Alignment.Center
         ) {
@@ -446,29 +460,30 @@ private fun ThemeSwatch(theme: AppTheme, selected: Boolean, onClick: () -> Unit)
                 Icon(
                     imageVector = Icons.Filled.Check,
                     contentDescription = "Selected",
-                    tint = theme.swatchBgColor,
+                    tint = scheme.onPrimary,
                     modifier = Modifier
-                        .size(22.dp)
-                        .background(theme.swatchPrimaryColor, CircleShape)
-                        .padding(3.dp)
+                        .size(24.dp)
+                        .background(swatchDot, CircleShape)
+                        .padding(4.dp)
                 )
             } else {
                 Box(
                     modifier = Modifier
-                        .size(22.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
-                        .background(theme.swatchPrimaryColor)
+                        .background(swatchDot)
                 )
             }
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(6.dp))
         Text(
             text = theme.displayName,
             style = MaterialTheme.typography.labelSmall,
             color = if (selected) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            maxLines = 2
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
