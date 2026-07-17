@@ -17,6 +17,14 @@
       "category": "utilities",
       "versions": [
         {
+          "version": "2.9.0",
+          "buildVersion": "2.9.0",
+          "date": "2026-07-17T01:58:26Z",
+          "localizedDescription": "## What's new in 2.9.0\n\n- feat: Android \u2014 signature status on decrypt, sign/verify interop, clipboard smarts, QR key exchange\n- feat: iOS \u2014 signature status on decrypt, cleartext verify, clipboard smarts, QR key exchange\n\n---\nUnsigned IPA \u2014 sideload with AltStore or Feather.\n",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.9.0/Natepad.ipa",
+          "size": 1106886
+        },
+        {
           "version": "2.8.0",
           "buildVersion": "2.8.0",
           "date": "2026-06-12T03:42:37Z",
