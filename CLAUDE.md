@@ -47,6 +47,14 @@ Bouncy Castle PGP, EncryptedSharedPreferences key storage, BiometricPrompt lock.
   auto-picks the single `.apk` asset
 - `versionCode` = commit count, `versionName` = semver — both injected by CI via `-P` flags;
   Compose BOM 2024.06.00 ships material3 1.2.1 — **do not use** material3 1.3+ APIs (e.g. `MenuAnchorType`)
+- QR: `com.google.zxing:core` (generation, `util/QrCode.kt`) + `com.journeyapps:zxing-android-embedded`
+  (scanner activity; requests CAMERA itself). iOS uses CoreImage + AVFoundation — no extra deps.
+- Clipboard: `util/SecureClipboard.kt` (sensitive flag + best-effort 60 s auto-clear),
+  `util/PgpContentDetector` (classify PGP blocks); HomeScreen has a "Check Clipboard" card
+- **Local Kotlin compile check** (Linux, no device): install cmdline-tools + `platforms;android-35`,
+  `echo "sdk.dir=$HOME/android-sdk" > android/local.properties` (gitignored), then
+  `cd android && ./gradlew :app:compileReleaseKotlin -PversionCode=1 -PversionName=0.0.0-local`.
+  Catches unresolved references before CI. iOS still builds only in CI.
 
 ## File map
 
@@ -54,9 +62,11 @@ Bouncy Castle PGP, EncryptedSharedPreferences key storage, BiometricPrompt lock.
 |---|---|
 | `NatepadApp.swift` | `@main`, gradient background ZStack, biometric background-lock notifications, tab icons, BrandMark, LockScreen |
 | `Theme.swift` | `AppTheme` enum (5 themes), `ThemeManager` ObservableObject, `ThemeSwatch` view, `Color(hex:)` extension |
-| `NotepadView.swift` | Encrypt/Decrypt/Sign/Verify UI, per-mode state dict, keyboard dismiss (scrollDismissesKeyboard + Done toolbar + tap-outside) |
-| `KeysView.swift` | Key list, generate/import/export/delete actions |
-| `Sheets.swift` | `GenerateKeySheet`, `ImportKeySheet`, `ExportKeySheet`, `PassphraseSheet`, `PickerDelegate`, `topMostViewController()` |
+| `NotepadView.swift` | Encrypt/Decrypt/Sign/Verify workflows (NavigationStack), clipboard "Check Clipboard" card + PGP routing, signature-status banner on decrypt |
+| `KeysView.swift` | Key list, generate/import/export/delete (with confirmation dialog), per-key QR sheet, QR scanner entry |
+| `Sheets.swift` | `GenerateKeySheet`, `ImportKeySheet` (accepts `initialText` prefill), `ExportKeySheet`, `PassphraseSheet`, `PickerDelegate`, `topMostViewController()` |
+| `Clipboard.swift` | `PGPContentKind.detect()` (classify pasted PGP blocks), `SensitivePasteboard.copy()` (60 s expiring, local-only copies) |
+| `QRCodeView.swift` | `QRCode` generator (CoreImage), `KeyQRSheet` (fingerprint/full-key QR), `ScannerViewController` (AVFoundation), `QRScanSheet` (verify fingerprint / import key) |
 | `Backup.swift` | `BackupService` (password-encrypted backup container), `BackupExportSheet`, `BackupImportSheet` |
 | `Components.swift` | `ModePicker`, `StatusBanner`, `RecipientChips`, `GlassCard`, `SettingsView` (theme picker + security toggle + backup) |
 | `PGPService.swift` | Static enum wrapping ObjectivePGP — parseKeys, generate, encrypt, decrypt, sign, verify |
@@ -111,6 +121,22 @@ git add <files>
 git commit -m "..."
 git push origin main
 ```
+
+## Sign / verify / decrypt semantics (cross-platform)
+- **Encrypt+Sign → Decrypt**: both apps embed a one-pass signature inside the encrypted message.
+  Decrypt on both platforms reports a `SignatureStatus` (valid / not signed / unknown key / invalid) —
+  iOS via ObjectivePGP's `decrypt:verified:certifyWithRootKey:` (the `verified` int carries PGPErrorCode:
+  0 = valid, 8 = not signed, 7 = bad sig or missing key), Android via manual one-pass processing in
+  `readSignedLiteral()`. **Never use `decrypt:andVerifySignature:` on iOS** — it returns plaintext even
+  when verification fails and Swift's error bridging silently drops the error.
+- **Sign formats differ by design**: iOS Sign → armored PGP MESSAGE (one-pass + literal + sig);
+  Android Sign → cleartext SIGNED MESSAGE. **Both Verifys accept both formats**: Android detects
+  cleartext vs message; iOS parses the cleartext framework manually (`verifyCleartext`) because
+  ObjectivePGP has no cleartext support, and tries RFC-canonicalised + raw CRLF variants.
+- Android decrypt throws `PassphraseRequiredException(record)` / `WrongPassphraseException(record)`
+  so the UI prompts for exactly the right key; iOS does a no-passphrase first pass that records
+  which key ObjectivePGP asks for, then prompts only for that one.
+- Android decrypt now enforces the MDC integrity check (`encData.verify()` after reading).
 
 ## Known gotchas
 - `UTType(filenameExtension: "asc")` returns `nil` on iOS — use `[.item]` to accept all files.
