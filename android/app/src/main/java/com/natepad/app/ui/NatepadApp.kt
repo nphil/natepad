@@ -147,7 +147,8 @@ fun NatepadApp(
                     when {
                         target.crypto -> CryptoScreen(
                             states = cryptoState,
-                            initialMode = cryptoMode,
+                            mode = cryptoMode,
+                            onModeChange = { cryptoMode = it },
                             onBack = { showCrypto = false },
                             modifier = Modifier.fillMaxSize()
                         )

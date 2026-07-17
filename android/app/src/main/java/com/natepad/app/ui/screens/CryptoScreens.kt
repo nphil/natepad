@@ -145,7 +145,8 @@ internal class CryptoScreenState {
 @Composable
 internal fun CryptoScreen(
     states: CryptoScreenState,
-    initialMode: CryptoMode = CryptoMode.ENCRYPT,
+    mode: CryptoMode,
+    onModeChange: (CryptoMode) -> Unit,
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -153,7 +154,6 @@ internal fun CryptoScreen(
     val repo = remember { KeyRepository.getInstance(context) }
     val keys by repo.keys.collectAsState()
 
-    var selectedMode by remember(initialMode) { mutableStateOf(initialMode) }
     // Lives at screen level (outside AnimatedContent) so an in-flight encrypt/decrypt
     // isn't cancelled by switching mode tabs mid-operation.
     val opScope = rememberCoroutineScope()
@@ -200,15 +200,15 @@ internal fun CryptoScreen(
                     .contentWidth(max = if (isWide) 560.dp else ContentMaxWidth)
                     .padding(horizontal = 16.dp)
             ) {
-                CryptoMode.entries.forEachIndexed { index, mode ->
+                CryptoMode.entries.forEachIndexed { index, m ->
                     SegmentedButton(
-                        selected = selectedMode == mode,
-                        onClick = { selectedMode = mode },
+                        selected = mode == m,
+                        onClick = { onModeChange(m) },
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = CryptoMode.entries.size),
                         icon = {}
                     ) {
                         Text(
-                            text = mode.label,
+                            text = m.label,
                             maxLines = 1,
                             softWrap = false,
                             overflow = TextOverflow.Ellipsis,
@@ -219,7 +219,7 @@ internal fun CryptoScreen(
             }
 
             AnimatedContent(
-                targetState = selectedMode,
+                targetState = mode,
                 transitionSpec = {
                     // Shared-axis X toward the newly selected segment.
                     val toRight = targetState.ordinal > initialState.ordinal
@@ -231,8 +231,8 @@ internal fun CryptoScreen(
                 },
                 label = "crypto_mode",
                 modifier = Modifier.fillMaxSize()
-            ) { mode ->
-                when (mode) {
+            ) { targetMode ->
+                when (targetMode) {
                     CryptoMode.ENCRYPT -> EncryptWorkflow(states.encrypt, keys, isWide, opScope)
                     CryptoMode.DECRYPT -> DecryptWorkflow(states.decrypt, keys, isWide, opScope)
                     CryptoMode.SIGN -> SignWorkflow(states.sign, keys, isWide, opScope)
