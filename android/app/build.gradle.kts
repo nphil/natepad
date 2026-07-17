@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "com.natepad.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.natepad.app"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         // CI passes -PversionCode / -PversionName; defaults are for local builds
         versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 1
         versionName = (project.findProperty("versionName") as String?) ?: "1.0.0-dev"
@@ -104,6 +104,7 @@ dependencies {
     implementation(libs.androidx.adaptive)
     implementation(libs.androidx.adaptive.layout)
     implementation(libs.androidx.adaptive.navigation)
+    implementation(libs.androidx.adaptive.navigation.suite)
 
     // Bouncy Castle
     implementation(libs.bouncycastle.bcpg)

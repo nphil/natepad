@@ -32,7 +32,8 @@ Feather/AltStore `apps.json` is updated automatically after each versioned relea
 A rolling `latest` prerelease is always updated on every push (for quick sideloading).
 
 ## Android app (`android/`)
-Jetpack Compose + Material You, tablet-adaptive (NavigationBar/Rail/PermanentDrawer).
+Jetpack Compose + Material You, fully adaptive (NavigationSuiteScaffold: bottom bar on
+compact windows, rail on medium+; Keys is a ListDetailPaneScaffold two-pane).
 Bouncy Castle PGP, EncryptedSharedPreferences key storage, BiometricPrompt lock.
 
 - CI: `.github/workflows/build-android.yml` — builds **signed release APK** on every push to `main`
@@ -45,8 +46,20 @@ Bouncy Castle PGP, EncryptedSharedPreferences key storage, BiometricPrompt lock.
   a new keystore breaks updates for every existing install (users would have to uninstall/reinstall).
 - Obtainium: add source URL `https://github.com/nphil/natepad` — it tracks `vX.Y.Z` releases and
   auto-picks the single `.apk` asset
-- `versionCode` = commit count, `versionName` = semver — both injected by CI via `-P` flags;
-  Compose BOM 2024.06.00 ships material3 1.2.1 — **do not use** material3 1.3+ APIs (e.g. `MenuAnchorType`)
+- `versionCode` = commit count, `versionName` = semver — both injected by CI via `-P` flags
+- **Build stack**: Kotlin 2.2.21, AGP 8.13.2, Gradle 8.14.3 (wrapper AND pinned in
+  build-android.yml's setup-gradle step — keep both in sync), compileSdk/targetSdk 36,
+  Compose BOM 2026.06.01 → material3 1.4.0 stable + adaptive 1.2.0 (BOM-managed).
+  core-ktx 1.18.0 / lifecycle 2.10.0 are the NEWEST versions that accept compileSdk 36 —
+  1.19.0/2.11.0 demand compileSdk 37 + AGP 9.1 (checkReleaseAarMetadata fails).
+- **M3 Expressive**: material3 1.4.0 stable keeps MotionScheme/MaterialExpressiveTheme
+  internal (Google moved Expressive APIs to the 1.5.0 alphas). `ui/theme/Theme.kt` defines
+  `NatepadMotion` spring tokens (M3E spec values) — use those for app animations.
+  Custom color schemes derive their surfaceContainer* roles via `withDerivedContainers()`.
+- **Adaptive rules**: never branch layouts on `LocalConfiguration.screenWidthDp` — use
+  `currentWindowAdaptiveInfo().windowSizeClass.isWidthAtLeastBreakpoint(...)` (window 1.5.1)
+  or `BoxWithConstraints` so windows reflow continuously in split-screen/desktop mode.
+  Crypto drafts live in `CryptoScreenState` at app scope (survive navigation, not process death).
 - QR: `com.google.zxing:core` (generation, `util/QrCode.kt`) + `com.journeyapps:zxing-android-embedded`
   (scanner activity; requests CAMERA itself). iOS uses CoreImage + AVFoundation — no extra deps.
 - Clipboard: `util/SecureClipboard.kt` (sensitive flag + best-effort 60 s auto-clear),

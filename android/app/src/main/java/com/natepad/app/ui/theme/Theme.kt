@@ -2,8 +2,12 @@ package com.natepad.app.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.spring
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -11,10 +15,12 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ── Theme selection ───────────────────────────────────────────────────────────
@@ -60,11 +66,41 @@ fun AppTheme.resolveColorScheme(darkTheme: Boolean): ColorScheme = when (this) {
         }
     }
     AppTheme.PURPLE    -> if (darkTheme) PurpleDarkColorScheme else PurpleLightColorScheme
-    AppTheme.OCEAN     -> OceanColorScheme
-    AppTheme.FOREST    -> ForestColorScheme
-    AppTheme.DRACULA   -> DraculaColorScheme
-    AppTheme.SYNTHWAVE -> SynthwaveColorScheme
-    AppTheme.LEMONADE  -> if (darkTheme) LemonadeDarkColorScheme else LemonadeLightColorScheme
+    AppTheme.OCEAN     -> OceanColorScheme.withDerivedContainers(dark = true)
+    AppTheme.FOREST    -> ForestColorScheme.withDerivedContainers(dark = true)
+    AppTheme.DRACULA   -> DraculaColorScheme.withDerivedContainers(dark = true)
+    AppTheme.SYNTHWAVE -> SynthwaveColorScheme.withDerivedContainers(dark = true)
+    AppTheme.LEMONADE  -> (if (darkTheme) LemonadeDarkColorScheme.withDerivedContainers(dark = true)
+                           else LemonadeLightColorScheme.withDerivedContainers(dark = false))
+}
+
+
+// ── Surface container derivation ─────────────────────────────────────────────
+//
+// M3 components (navigation rail, cards, panes) layer on the surfaceContainer
+// hierarchy. darkColorScheme() fills those roles with baseline purple-neutral
+// defaults, which clash with the custom hues — derive them from each scheme's
+// own background/onBackground instead.
+private fun ColorScheme.withDerivedContainers(dark: Boolean): ColorScheme {
+    val bg = background
+    val on = onBackground
+    return if (dark) copy(
+        surfaceDim = lerp(bg, Color.Black, 0.22f),
+        surfaceBright = lerp(bg, on, 0.12f),
+        surfaceContainerLowest = lerp(bg, Color.Black, 0.35f),
+        surfaceContainerLow = lerp(bg, on, 0.045f),
+        surfaceContainer = lerp(bg, on, 0.07f),
+        surfaceContainerHigh = lerp(bg, on, 0.11f),
+        surfaceContainerHighest = lerp(bg, on, 0.15f),
+    ) else copy(
+        surfaceDim = lerp(bg, on, 0.13f),
+        surfaceBright = bg,
+        surfaceContainerLowest = Color.White,
+        surfaceContainerLow = lerp(bg, on, 0.025f),
+        surfaceContainer = lerp(bg, on, 0.045f),
+        surfaceContainerHigh = lerp(bg, on, 0.07f),
+        surfaceContainerHighest = lerp(bg, on, 0.10f),
+    )
 }
 
 // ── Purple (default brand) ────────────────────────────────────────────────────
@@ -319,6 +355,15 @@ val NatepadTypography = Typography(
 
 // ── Theme composable ──────────────────────────────────────────────────────────
 
+/** Rounder-than-baseline shape scale, in line with M3 Expressive. */
+val NatepadShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(28.dp),
+)
+
 @Composable
 fun NatepadTheme(
     appTheme: AppTheme = AppTheme.MATERIAL_YOU,
@@ -329,6 +374,30 @@ fun NatepadTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = NatepadTypography,
+        shapes = NatepadShapes,
         content = content
     )
+}
+
+// ── Motion tokens ─────────────────────────────────────────────────────────────
+//
+// Spring parameters from the M3 Expressive motion spec. material3 1.4.0 keeps its
+// MotionScheme API internal, so we carry the same tokens ourselves; our animations
+// use these, components keep their built-in M3 motion.
+object NatepadMotion {
+    /** Bouncy spring for things that move or change size. */
+    fun <T> spatialDefault(): FiniteAnimationSpec<T> =
+        spring(dampingRatio = 0.8f, stiffness = 380f)
+
+    /** Snappier spatial spring for small, frequent movements (press feedback). */
+    fun <T> spatialFast(): FiniteAnimationSpec<T> =
+        spring(dampingRatio = 0.6f, stiffness = 800f)
+
+    /** Non-bouncy spring for fades and color changes. */
+    fun <T> effectsDefault(): FiniteAnimationSpec<T> =
+        spring(dampingRatio = 1f, stiffness = 1600f)
+
+    /** Fast non-bouncy spring for outgoing content. */
+    fun <T> effectsFast(): FiniteAnimationSpec<T> =
+        spring(dampingRatio = 1f, stiffness = 3800f)
 }

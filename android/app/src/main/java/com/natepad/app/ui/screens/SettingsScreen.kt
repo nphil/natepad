@@ -6,8 +6,15 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricManager
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +31,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.AlertDialog
@@ -59,9 +65,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.natepad.app.data.BackupService
 import com.natepad.app.data.KeyRepository
+import com.natepad.app.ui.components.AnimatedStatusCard
 import com.natepad.app.ui.components.SectionLabel
-import com.natepad.app.ui.components.StatusCard
 import com.natepad.app.ui.components.StatusType
+import com.natepad.app.ui.components.contentWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import com.natepad.app.ui.theme.AppTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -189,9 +198,21 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+      Column(
+        modifier = Modifier
+            .contentWidth(max = 720.dp)
+            .padding(horizontal = 16.dp, vertical = 16.dp)
+      ) {
+        Text(
+            text = "Settings",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
         // ── Security ──────────────────────────────────────────────────────────
         SectionLabel("Security", modifier = Modifier.padding(bottom = 8.dp))
         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -249,9 +270,7 @@ fun SettingsScreen(
 
         // ── Backup ────────────────────────────────────────────────────────────
         SectionLabel("Backup", modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
-        backupStatus?.let { (msg, type) ->
-            StatusCard(msg, type, modifier = Modifier.padding(bottom = 8.dp))
-        }
+        AnimatedStatusCard(backupStatus, modifier = Modifier.padding(bottom = 8.dp))
         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
             ListItem(
                 headlineContent = { Text("Export Encrypted Backup") },
@@ -322,6 +341,7 @@ fun SettingsScreen(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
             )
         }
+      }
     }
 }
 
@@ -399,10 +419,19 @@ private fun BackupPasswordDialog(
 
 @Composable
 private fun ThemeSwatch(theme: AppTheme, selected: Boolean, onClick: () -> Unit) {
+    val borderWidth by animateDpAsState(
+        targetValue = if (selected) 3.dp else 1.5.dp, label = "swatch_border"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.outlineVariant,
+        label = "swatch_border_color"
+    )
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .width(60.dp)
+            .clip(MaterialTheme.shapes.small)
             .clickable(onClick = onClick)
     ) {
         Box(
@@ -410,20 +439,27 @@ private fun ThemeSwatch(theme: AppTheme, selected: Boolean, onClick: () -> Unit)
                 .size(48.dp)
                 .clip(CircleShape)
                 .background(theme.swatchBgColor)
-                .border(
-                    width = if (selected) 3.dp else 1.5.dp,
-                    color = if (selected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.outline,
-                    shape = CircleShape
-                ),
+                .border(width = borderWidth, color = borderColor, shape = CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(22.dp)
-                    .clip(CircleShape)
-                    .background(theme.swatchPrimaryColor)
-            )
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = "Selected",
+                    tint = theme.swatchBgColor,
+                    modifier = Modifier
+                        .size(22.dp)
+                        .background(theme.swatchPrimaryColor, CircleShape)
+                        .padding(3.dp)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clip(CircleShape)
+                        .background(theme.swatchPrimaryColor)
+                )
+            }
         }
         Spacer(Modifier.height(4.dp))
         Text(

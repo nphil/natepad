@@ -25,6 +25,13 @@ object SecureClipboard {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var clearJob: Job? = null
 
+    /** Plain copy for non-secret content (ciphertext, public keys, signed messages). */
+    fun copy(context: Context, text: String, label: String = "NatePad") {
+        val cm = context.applicationContext
+            .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText(label, text))
+    }
+
     fun copySensitive(context: Context, text: String, label: String = "NatePad") {
         val appContext = context.applicationContext
         val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
