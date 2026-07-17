@@ -6,7 +6,10 @@ struct KeysView: View {
 
     @State private var showGenerate = false
     @State private var showImport = false
+    @State private var showScanner = false
     @State private var exportContext: ExportContext? = nil
+    @State private var qrRecord: KeyRecord? = nil
+    @State private var deleteTarget: KeyRecord? = nil
 
     struct ExportContext: Identifiable {
         let id = UUID()
@@ -34,6 +37,9 @@ struct KeysView: View {
                         Button { showImport = true } label: {
                             Label("Import…", systemImage: "square.and.arrow.down")
                         }
+                        Button { showScanner = true } label: {
+                            Label("Scan QR…", systemImage: "qrcode.viewfinder")
+                        }
                         Button { showGenerate = true } label: {
                             Label("Generate new", systemImage: "wand.and.stars")
                         }
@@ -48,8 +54,37 @@ struct KeysView: View {
             .sheet(isPresented: $showImport) {
                 ImportKeySheet().environmentObject(store)
             }
+            .sheet(isPresented: $showScanner) {
+                QRScanSheet()
+                    .environmentObject(store)
+                    .environmentObject(theme)
+            }
             .sheet(item: $exportContext) { ctx in
                 ExportKeySheet(record: ctx.record, kind: ctx.kind)
+            }
+            .sheet(item: $qrRecord) { rec in
+                KeyQRSheet(record: rec)
+                    .environmentObject(theme)
+            }
+            .confirmationDialog(
+                "Delete \(deleteTarget?.primaryUser.name ?? "key")?",
+                isPresented: Binding(
+                    get: { deleteTarget != nil },
+                    set: { if !$0 { deleteTarget = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Delete Key", role: .destructive) {
+                    if let rec = deleteTarget {
+                        store.remove(id: rec.id)
+                    }
+                    deleteTarget = nil
+                }
+                Button("Cancel", role: .cancel) { deleteTarget = nil }
+            } message: {
+                Text(deleteTarget?.hasPrivate == true
+                     ? "This deletes the PRIVATE key. Without a backup you will permanently lose the ability to decrypt messages sent to it."
+                     : "This removes the public key from your keyring.")
             }
         }
     }
@@ -86,7 +121,7 @@ struct KeysView: View {
     private var keyList: some View {
         List {
             ForEach(store.keys) { rec in
-                KeyRow(record: rec, exportContext: $exportContext)
+                KeyRow(record: rec, exportContext: $exportContext, qrRecord: $qrRecord)
                     .listRowBackground(
                         RoundedRectangle(cornerRadius: 14)
                             .fill(.ultraThinMaterial)
@@ -95,7 +130,7 @@ struct KeysView: View {
                     .listRowSeparator(.hidden)
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
-                            confirmDelete(rec)
+                            deleteTarget = rec
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
@@ -106,16 +141,12 @@ struct KeysView: View {
         .scrollContentBackground(.hidden)
     }
 
-    private func confirmDelete(_ rec: KeyRecord) {
-        // SwiftUI's confirmationDialog requires hoisting state; do it inline via a UIAlert-like approach.
-        // For simplicity, just remove. The destructive swipe action already requires intent.
-        store.remove(id: rec.id)
-    }
 }
 
 struct KeyRow: View {
     let record: KeyRecord
     @Binding var exportContext: KeysView.ExportContext?
+    @Binding var qrRecord: KeyRecord?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -156,6 +187,14 @@ struct KeyRow: View {
                     } label: {
                         Label("Share Private", systemImage: "square.and.arrow.up")
                             .multilineTextAlignment(.center)
+                    }
+                    .buttonStyle(.glass)
+                }
+                if record.hasPublic {
+                    Button {
+                        qrRecord = record
+                    } label: {
+                        Label("QR", systemImage: "qrcode")
                     }
                     .buttonStyle(.glass)
                 }

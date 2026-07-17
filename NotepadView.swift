@@ -13,14 +13,21 @@ enum NotepadDestination: Hashable {
 struct NotepadView: View {
     @EnvironmentObject var store: KeyStore
     @EnvironmentObject var theme: ThemeManager
-    
+
+    @State private var path: [NotepadDestination] = []
+    @State private var prefillText: String? = nil
+    @State private var showImportSheet = false
+    @State private var importPrefill = ""
+    @State private var clipboardHasText = UIPasteboard.general.hasStrings
+    @State private var clipboardNote: String? = nil
+
     private let columns = [
         GridItem(.flexible(), spacing: 14),
         GridItem(.flexible(), spacing: 14)
     ]
-    
+
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(spacing: 20) {
                     // App Brand Header Card
@@ -59,7 +66,48 @@ struct NotepadView: View {
                             detail: "Generate or import a key pair under the Keys tab to enable all PGP features."
                         )
                     }
-                    
+
+                    // Clipboard quick action
+                    if clipboardHasText {
+                        Button {
+                            checkClipboard()
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "doc.on.clipboard")
+                                    .font(.title3)
+                                    .foregroundStyle(theme.current.accentColor)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Check Clipboard")
+                                        .font(.callout.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                    Text("Open a copied PGP message, signature, or key")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(14)
+                            .frame(maxWidth: .infinity)
+                            .background {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(.ultraThinMaterial)
+                            }
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(theme.current.accentColor.opacity(0.18), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    if let clipboardNote {
+                        Text(clipboardNote)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     // 2x2 Grid of Actions
                     LazyVGrid(columns: columns, spacing: 14) {
                         NavigationLink(value: NotepadDestination.encrypt) {
@@ -117,13 +165,51 @@ struct NotepadView: View {
                 case .encrypt:
                     EncryptWorkflow()
                 case .decrypt:
-                    DecryptWorkflow()
+                    DecryptWorkflow(initialText: prefillText ?? "")
                 case .sign:
                     SignWorkflow()
                 case .verify:
-                    VerifyWorkflow()
+                    VerifyWorkflow(initialText: prefillText ?? "")
                 }
             }
+            .onChange(of: path) { _, newPath in
+                if newPath.isEmpty { prefillText = nil }
+            }
+            .onAppear {
+                clipboardHasText = UIPasteboard.general.hasStrings
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                clipboardHasText = UIPasteboard.general.hasStrings
+                clipboardNote = nil
+            }
+            .sheet(isPresented: $showImportSheet) {
+                ImportKeySheet(initialText: importPrefill)
+                    .environmentObject(store)
+            }
+        }
+    }
+
+    /// Reads the pasteboard (user-initiated, so the system paste notice is expected)
+    /// and routes whatever PGP block it finds to the right workflow.
+    private func checkClipboard() {
+        clipboardNote = nil
+        guard let text = UIPasteboard.general.string,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            clipboardNote = "The clipboard has no text."
+            return
+        }
+        switch PGPContentKind.detect(in: text) {
+        case .encryptedMessage:
+            prefillText = text
+            path.append(.decrypt)
+        case .signedMessage:
+            prefillText = text
+            path.append(.verify)
+        case .publicKey, .privateKey:
+            importPrefill = text
+            showImportSheet = true
+        case nil:
+            clipboardNote = "No PGP block found on the clipboard."
         }
     }
 }
@@ -356,7 +442,9 @@ struct EncryptWorkflow: View {
                     Text("Encryption Complete")
                         .font(.title2.weight(.bold))
                         
-                    Text("The message has been securely encrypted with the selected PGP public keys.")
+                    Text(signerID == nil
+                         ? "The message has been securely encrypted with the selected PGP public keys."
+                         : "The message has been signed with your key and encrypted with the selected PGP public keys.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -485,14 +573,19 @@ struct DecryptWorkflow: View {
     @EnvironmentObject var theme: ThemeManager
     @Environment(\.dismiss) var dismiss
 
-    @State private var inputText = ""
+    @State private var inputText: String
     @State private var decryptKeyID: String? = nil
     @State private var decryptedText = ""
+    @State private var signatureStatus: PGPService.SignatureStatus = .notSigned
     @State private var isWorking = false
     @State private var errorMessage: String? = nil
     @State private var showResultSheet = false
-    
+
     @State private var passphrasePrompt: PassphrasePromptContext? = nil
+
+    init(initialText: String = "") {
+        _inputText = State(initialValue: initialText)
+    }
 
     var body: some View {
         VStack(spacing: 14) {
@@ -604,7 +697,24 @@ struct DecryptWorkflow: View {
                         
                     Text("Decryption Successful")
                         .font(.title2.weight(.bold))
-                        
+
+                    switch signatureStatus {
+                    case .valid:
+                        StatusBanner(kind: .success,
+                                     title: "Signature verified",
+                                     detail: "Signed by a key in your keyring.")
+                            .padding(.horizontal, 16)
+                    case .invalid(let reason):
+                        StatusBanner(kind: .warn,
+                                     title: "Signature not verified",
+                                     detail: reason)
+                            .padding(.horizontal, 16)
+                    case .notSigned:
+                        Text("This message is not signed.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     VStack(alignment: .trailing, spacing: 8) {
                         ScrollView {
                             Text(decryptedText)
@@ -625,19 +735,22 @@ struct DecryptWorkflow: View {
                         
                         HStack {
                             Button {
-                                UIPasteboard.general.string = decryptedText
+                                SensitivePasteboard.copy(decryptedText)
                             } label: {
                                 Label("Copy Plaintext", systemImage: "doc.on.doc")
                             }
                             .buttonStyle(.glass)
                             .controlSize(.small)
-                            
+
                             ShareLink(item: decryptedText) {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
                             .buttonStyle(.glass)
                             .controlSize(.small)
                         }
+                        Text("Copies clear from the clipboard after \(Int(SensitivePasteboard.clearAfterSeconds)) s.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                     .padding(.horizontal, 16)
                     
@@ -696,19 +809,41 @@ struct DecryptWorkflow: View {
                 keysToTry = store.privateKeys
             }
 
-            var passphrases: [String: String] = [:]
-            for rec in keysToTry {
-                guard let pp = await askPassphrase(for: rec) else { return } // user cancelled
-                passphrases[rec.id] = pp
+            // First attempt without passphrases. ObjectivePGP tells us (via the
+            // callback) which key the message actually needs, so the user is only
+            // prompted for that one — not for every private key in the keyring.
+            var requestedID: String? = nil
+            do {
+                let result = try PGPService.decrypt(
+                    armoredMessage: input,
+                    using: keysToTry,
+                    verificationKeys: store.publicKeys,
+                    passphraseProvider: { rec in
+                        requestedID = rec.id
+                        return nil
+                    }
+                )
+                decryptedText = result.plaintext
+                signatureStatus = result.signature
+                showResultSheet = true
+                return
+            } catch PGPService.PGPError.passphraseRequired {
+                // Prompt for the key that was requested, below.
             }
 
-            let plaintext = try PGPService.decrypt(
+            guard let needed = requestedID.flatMap({ store.key(id: $0) }) ?? keysToTry.first else {
+                throw PGPService.PGPError.noMatchingDecryptionKey
+            }
+            guard let passphrase = await askPassphrase(for: needed) else { return } // cancelled
+
+            let result = try PGPService.decrypt(
                 armoredMessage: input,
                 using: keysToTry,
                 verificationKeys: store.publicKeys,
-                passphraseProvider: { rec in passphrases[rec.id] }
+                passphraseProvider: { rec in rec.id == needed.id ? passphrase : nil }
             )
-            decryptedText = plaintext.0
+            decryptedText = result.plaintext
+            signatureStatus = result.signature
             showResultSheet = true
         } catch {
             errorMessage = error.localizedDescription
@@ -964,11 +1099,15 @@ struct VerifyWorkflow: View {
     @EnvironmentObject var theme: ThemeManager
     @Environment(\.dismiss) var dismiss
 
-    @State private var inputText = ""
+    @State private var inputText: String
     @State private var verifiedText = ""
     @State private var isWorking = false
     @State private var errorMessage: String? = nil
     @State private var showResultSheet = false
+
+    init(initialText: String = "") {
+        _inputText = State(initialValue: initialText)
+    }
 
     var body: some View {
         VStack(spacing: 14) {
@@ -1089,19 +1228,22 @@ struct VerifyWorkflow: View {
                         
                         HStack {
                             Button {
-                                UIPasteboard.general.string = verifiedText
+                                SensitivePasteboard.copy(verifiedText)
                             } label: {
                                 Label("Copy Plaintext", systemImage: "doc.on.doc")
                             }
                             .buttonStyle(.glass)
                             .controlSize(.small)
-                            
+
                             ShareLink(item: verifiedText) {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
                             .buttonStyle(.glass)
                             .controlSize(.small)
                         }
+                        Text("Copies clear from the clipboard after \(Int(SensitivePasteboard.clearAfterSeconds)) s.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                     .padding(.horizontal, 16)
                     

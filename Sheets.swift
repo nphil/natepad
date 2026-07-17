@@ -154,9 +154,13 @@ struct ImportKeySheet: View {
     @EnvironmentObject var store: KeyStore
     @Environment(\.dismiss) var dismiss
 
-    @State private var pastedText = ""
+    @State private var pastedText: String
     @State private var resultMessage: String?
     @State private var isWorking = false
+
+    init(initialText: String = "") {
+        _pastedText = State(initialValue: initialText)
+    }
 
     var body: some View {
         NavigationStack {
@@ -212,8 +216,6 @@ struct ImportKeySheet: View {
             resultMessage = "Could not find a window to present the file picker from."
             return
         }
-        if let already = presenter.presentedViewController {
-        }
         // Two critical settings:
         //   • allowedTypes=[.item] — the most permissive UTI (includes .data, .text,
         //     .directory, .symlink, etc.). With anything narrower (.data, .text), iOS
@@ -226,14 +228,10 @@ struct ImportKeySheet: View {
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: allowedTypes, asCopy: true)
         picker.allowsMultipleSelection = true
         picker.shouldShowFileExtensions = true
-        _ = PickerDelegate(picker: picker,
-                           onPicked: { urls in
-                               readFiles(urls)
-                           },
-                           onCancel: {
-                           })
-        presenter.present(picker, animated: true) {
-        }
+        _ = PickerDelegate(picker: picker, onPicked: { urls in
+            readFiles(urls)
+        })
+        presenter.present(picker, animated: true)
     }
 
     private func readFiles(_ urls: [URL]) {
@@ -254,7 +252,6 @@ struct ImportKeySheet: View {
                 if !text.isEmpty {
                     if !combined.isEmpty { combined += "\n\n" }
                     combined += text
-                } else {
                 }
             } catch {
                 readErrors.append(url.lastPathComponent + ": " + error.localizedDescription)
@@ -266,7 +263,6 @@ struct ImportKeySheet: View {
         }
         if !combined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             Task { await runImport() }
-        } else {
         }
     }
 
@@ -324,9 +320,14 @@ struct ExportKeySheet: View {
                 }
                 Section {
                     Button {
-                        UIPasteboard.general.string = armored
+                        if kind == .privateKey {
+                            SensitivePasteboard.copy(armored)
+                        } else {
+                            UIPasteboard.general.string = armored
+                        }
                     } label: {
-                        Label("Copy", systemImage: "doc.on.doc")
+                        Label(kind == .privateKey ? "Copy (clears after 60 s)" : "Copy",
+                              systemImage: "doc.on.doc")
                     }
                     ShareLink(item: armored, preview: SharePreview("\(title) — \(record.primaryUser.name)")) {
                         Label("Share / Save…", systemImage: "square.and.arrow.up")

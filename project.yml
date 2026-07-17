@@ -43,6 +43,7 @@ targets:
         CFBundleVersion: "3"
         UILaunchScreen: {}
         NSFaceIDUsageDescription: "Unlock Natepad to access your PGP keys"
+        NSCameraUsageDescription: "Scan QR codes to import or verify PGP keys"
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UISupportedInterfaceOrientations~ipad:
