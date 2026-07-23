@@ -109,7 +109,9 @@ import java.util.Date
 fun KeysScreen(
     modifier: Modifier = Modifier,
     importRequest: String? = null,
-    onImportRequestConsumed: () -> Unit = {}
+    onImportRequestConsumed: () -> Unit = {},
+    generateRequest: Boolean = false,
+    onGenerateRequestConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val repo = remember { KeyRepository.getInstance(context) }
@@ -142,6 +144,14 @@ fun KeysScreen(
             importPrefill = importRequest
             showImportDialog = true
             onImportRequestConsumed()
+        }
+    }
+
+    // Onboarding's "Create my first key" lands here with the dialog open.
+    LaunchedEffect(generateRequest) {
+        if (generateRequest) {
+            showGenerateDialog = true
+            onGenerateRequestConsumed()
         }
     }
 

@@ -44,13 +44,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
+import android.content.Context
 import com.natepad.app.ui.screens.CryptoMode
 import com.natepad.app.ui.screens.CryptoScreen
 import com.natepad.app.ui.screens.CryptoScreenState
 import com.natepad.app.ui.screens.HomeScreen
 import com.natepad.app.ui.screens.KeysScreen
+import com.natepad.app.ui.screens.OnboardingScreen
 import com.natepad.app.ui.screens.SettingsScreen
 import com.natepad.app.ui.theme.AppTheme
 import com.natepad.app.ui.theme.NatepadTheme
@@ -71,6 +74,9 @@ private enum class NavDestination(
 /** What is currently on screen — a top-level destination, possibly with the crypto editor over Home. */
 private data class ScreenState(val dest: NavDestination, val crypto: Boolean)
 
+/** Root-level content swap: biometric lock wins, then first-run intro, then the app. */
+private enum class RootContent { LOCK, ONBOARDING, APP }
+
 @Composable
 fun NatepadApp(
     isLocked: Boolean,
@@ -89,6 +95,23 @@ fun NatepadApp(
         // never loses what was typed. Cleared only when the process ends.
         val cryptoState = remember { CryptoScreenState() }
         var keyImportRequest by remember { mutableStateOf<String?>(null) }
+        var keyGenerateRequest by remember { mutableStateOf(false) }
+
+        // First-run intro. The flag lives in settings prefs so it shows once.
+        val context = LocalContext.current
+        val settingsPrefs = remember {
+            context.getSharedPreferences("natepad_settings", Context.MODE_PRIVATE)
+        }
+        var showOnboarding by rememberSaveable {
+            mutableStateOf(!settingsPrefs.getBoolean("onboarding_done", false))
+        }
+
+        fun finishOnboarding() {
+            if (showOnboarding) {
+                settingsPrefs.edit().putBoolean("onboarding_done", true).apply()
+                showOnboarding = false
+            }
+        }
 
         fun openWithInput(mode: CryptoMode, text: String) {
             cryptoMode = mode
@@ -106,6 +129,9 @@ fun NatepadApp(
         // else becomes the plaintext of a fresh Encrypt.
         LaunchedEffect(externalText) {
             externalText?.let { text ->
+                // Someone sharing content in is already using the app — don't
+                // make them sit through the intro first.
+                finishOnboarding()
                 when (PgpContentDetector.detect(text)) {
                     PgpContentKind.ENCRYPTED_MESSAGE -> openWithInput(CryptoMode.DECRYPT, text)
                     PgpContentKind.SIGNED_MESSAGE -> openWithInput(CryptoMode.VERIFY, text)
@@ -200,7 +226,9 @@ fun NatepadApp(
                         target.dest == NavDestination.KEYS -> KeysScreen(
                             modifier = Modifier.fillMaxSize(),
                             importRequest = keyImportRequest,
-                            onImportRequestConsumed = { keyImportRequest = null }
+                            onImportRequestConsumed = { keyImportRequest = null },
+                            generateRequest = keyGenerateRequest,
+                            onGenerateRequestConsumed = { keyGenerateRequest = false }
                         )
                         else -> SettingsScreen(
                             selectedTheme = selectedTheme,
@@ -216,16 +244,25 @@ fun NatepadApp(
         // locking unmounts the app UI (no touch passthrough, nothing readable by
         // accessibility services) while drafts and navigation state survive.
         AnimatedContent(
-            targetState = isLocked,
+            targetState = if (isLocked) RootContent.LOCK
+            else if (showOnboarding) RootContent.ONBOARDING
+            else RootContent.APP,
             transitionSpec = {
                 fadeIn(NatepadMotion.effectsDefault()) togetherWith fadeOut(NatepadMotion.effectsFast())
             },
             label = "lock"
-        ) { locked ->
-            if (locked) {
-                LockScreen(showUnlockButton = showUnlockButton, onUnlock = onUnlock)
-            } else {
-                appUi()
+        ) { content ->
+            when (content) {
+                RootContent.LOCK -> LockScreen(showUnlockButton = showUnlockButton, onUnlock = onUnlock)
+                RootContent.ONBOARDING -> OnboardingScreen(
+                    onCreateKey = {
+                        finishOnboarding()
+                        currentDest = NavDestination.KEYS
+                        keyGenerateRequest = true
+                    },
+                    onSkip = ::finishOnboarding
+                )
+                RootContent.APP -> appUi()
             }
         }
     }

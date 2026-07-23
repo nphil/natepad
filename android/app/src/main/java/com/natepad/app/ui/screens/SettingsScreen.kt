@@ -73,6 +73,7 @@ import com.natepad.app.ui.components.SectionLabel
 import com.natepad.app.ui.components.StatusType
 import com.natepad.app.ui.components.contentWidth
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.Check
 import com.natepad.app.ui.theme.AppTheme
 import com.natepad.app.ui.theme.resolveColorScheme
@@ -114,6 +115,11 @@ fun SettingsScreen(
         } catch (_: PackageManager.NameNotFoundException) {
             "—"
         }
+    }
+
+    var showHelp by remember { mutableStateOf(false) }
+    if (showHelp) {
+        HelpSheet(onDismiss = { showHelp = false })
     }
 
     // ── Backup state ──────────────────────────────────────────────────────────
@@ -316,6 +322,21 @@ fun SettingsScreen(
             modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp)
         )
 
+        // ── Help ──────────────────────────────────────────────────────────────
+        SectionLabel("Help", modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            ListItem(
+                headlineContent = { Text("Help & FAQ") },
+                supportingContent = { Text("How PGP and NatePad work") },
+                leadingContent = {
+                    Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary)
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable { showHelp = true }
+            )
+        }
+
         // ── About ─────────────────────────────────────────────────────────────
         SectionLabel("About", modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -346,6 +367,12 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text("Key Storage") },
                 supportingContent = { Text("AES-256-GCM via Android Keystore") },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            ListItem(
+                headlineContent = { Text("Privacy") },
+                supportingContent = { Text("No internet permission — keys and messages never leave this device") },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
             )
         }
