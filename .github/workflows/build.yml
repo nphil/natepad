@@ -220,7 +220,23 @@ jobs:
           NEW_VER: ${{ steps.semver.outputs.new_version }}
           NEW_TAG: ${{ steps.semver.outputs.new_tag }}
         run: |
-          python3 - "$NEW_VER" "$NEW_TAG" << 'PYEOF'
+          # The job checkout is pinned to the trigger SHA, but a previous run's
+          # apps.json commit may have landed on main since — rebasing the stale
+          # checkout conflicts (broke run #58). Instead, apply the edit on top
+          # of the live main tip in a scratch worktree and retry if main moves.
+          IPA_SIZE=$(stat -f%z Natepad.ipa)
+          export IPA_SIZE
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git worktree add --detach /tmp/apps-sync origin/main
+          cd /tmp/apps-sync
+
+          ok=0
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            python3 - "$NEW_VER" "$NEW_TAG" << 'PYEOF'
           import json, sys, os, datetime
 
           version, tag = sys.argv[1], sys.argv[2]
@@ -242,7 +258,7 @@ jobs:
               "date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
               "localizedDescription": body,
               "downloadURL": f"https://github.com/{repo}/releases/download/{tag}/Natepad.ipa",
-              "size": os.path.getsize("Natepad.ipa"),
+              "size": int(os.environ["IPA_SIZE"]),
           })
 
           with open("apps.json", "w") as f:
@@ -250,18 +266,18 @@ jobs:
               f.write("\n")
           print(f"apps.json updated for {version}")
           PYEOF
-
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add apps.json
-          if git diff --cached --quiet; then
-            echo "apps.json unchanged"
-          else
+            git add apps.json
+            if git diff --cached --quiet; then
+              echo "apps.json already up to date"
+              ok=1; break
+            fi
             git commit -m "chore: update apps.json for ${NEW_TAG} [skip ci]"
-            # --autostash: project.yml carries uncommitted CI version stamps
-            git pull --rebase --autostash origin main
-            git push origin HEAD:main
-          fi
+            if git push origin HEAD:main; then
+              ok=1; break
+            fi
+            echo "Push rejected (main moved during attempt ${attempt}) — retrying"
+          done
+          [ "$ok" = "1" ] || { echo "Failed to update apps.json after 3 attempts"; exit 1; }
 
       - name: Delete previous "latest" prerelease
         env:
