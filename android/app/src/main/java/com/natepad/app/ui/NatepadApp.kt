@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import android.content.Context
+import com.natepad.app.data.KeyRepository
 import com.natepad.app.ui.screens.CryptoMode
 import com.natepad.app.ui.screens.CryptoScreen
 import com.natepad.app.ui.screens.CryptoScreenState
@@ -98,12 +99,21 @@ fun NatepadApp(
         var keyGenerateRequest by remember { mutableStateOf(false) }
 
         // First-run intro. The flag lives in settings prefs so it shows once.
+        // Existing installs are grandfathered in: anyone who already has keys
+        // clearly knows the app — mark them done instead of showing the intro
+        // after an update.
         val context = LocalContext.current
         val settingsPrefs = remember {
             context.getSharedPreferences("natepad_settings", Context.MODE_PRIVATE)
         }
         var showOnboarding by rememberSaveable {
-            mutableStateOf(!settingsPrefs.getBoolean("onboarding_done", false))
+            val done = settingsPrefs.getBoolean("onboarding_done", false)
+            val existingUser = !done &&
+                KeyRepository.getInstance(context).getKeys().isNotEmpty()
+            if (existingUser) {
+                settingsPrefs.edit().putBoolean("onboarding_done", true).apply()
+            }
+            mutableStateOf(!done && !existingUser)
         }
 
         fun finishOnboarding() {
