@@ -78,11 +78,13 @@ import com.natepad.app.data.KeyRepository
 import com.natepad.app.pgp.PgpService
 import com.natepad.app.ui.components.AnimatedStatusCard
 import com.natepad.app.ui.components.ContentMaxWidth
+import com.natepad.app.ui.components.HapticsCallbacks
 import com.natepad.app.ui.components.PgpTextField
 import com.natepad.app.ui.components.RecipientChip
 import com.natepad.app.ui.components.SectionLabel
 import com.natepad.app.ui.components.StatusType
 import com.natepad.app.ui.components.contentWidth
+import com.natepad.app.ui.components.rememberHaptics
 import com.natepad.app.util.SecureClipboard
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -332,6 +334,7 @@ private fun OutputSection(
     onClear: () -> Unit
 ) {
     val context = LocalContext.current
+    val haptics = rememberHaptics()
     // Latch the last non-empty output so Clear animates the old text away
     // instead of collapsing an empty field.
     var lastOutput by remember { mutableStateOf(output) }
@@ -345,9 +348,10 @@ private fun OutputSection(
             PgpTextField(value = lastOutput, onValueChange = {}, label = label, readOnly = true)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
+                    haptics.tap()
                     if (sensitive) {
                         SecureClipboard.copySensitive(context, lastOutput)
-                        onCopied("Copied — the clipboard clears itself in 60 s" to StatusType.INFO)
+                        onCopied("Copied — the clipboard clears itself automatically" to StatusType.INFO)
                     } else {
                         SecureClipboard.copy(context, lastOutput)
                         onCopied("Copied to clipboard" to StatusType.INFO)
@@ -372,6 +376,18 @@ private fun OutputSection(
                 }
                 TextButton(onClick = onClear) { Text("Clear") }
             }
+            // Live countdown until the sensitive clip self-clears, so the
+            // auto-clear isn't an invisible surprise.
+            if (sensitive) {
+                val countdown by SecureClipboard.countdown.collectAsState()
+                AnimatedVisibility(visible = countdown != null) {
+                    Text(
+                        text = "Clipboard clears in ${countdown ?: 0} s",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
@@ -381,6 +397,7 @@ private fun OutputSection(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EncryptWorkflow(state: EncryptState, keys: List<KeyRecord>, isWide: Boolean, scope: CoroutineScope) {
+    val haptics = rememberHaptics()
     val publicKeys = keys.filter { it.hasPublic }
     val privateKeys = keys.filter { it.hasPrivate }
 
@@ -412,9 +429,11 @@ private fun EncryptWorkflow(state: EncryptState, keys: List<KeyRecord>, isWide: 
                     } else {
                         "Encrypted successfully" to StatusType.SUCCESS
                     }
+                    haptics.success()
                 }.onFailure { e ->
                     if (e is CancellationException) throw e
                     state.status = (e.message ?: "Encryption failed") to StatusType.ERROR
+                    haptics.error()
                 }
             } finally {
                 state.working = false
@@ -498,6 +517,7 @@ private fun EncryptWorkflow(state: EncryptState, keys: List<KeyRecord>, isWide: 
 
 @Composable
 private fun DecryptWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Boolean, scope: CoroutineScope) {
+    val haptics = rememberHaptics()
     var passphraseDialogKey by remember { mutableStateOf<KeyRecord?>(null) }
 
     val privateKeys = keys.filter { it.hasPrivate }
@@ -526,6 +546,7 @@ private fun DecryptWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Boo
                 }.onSuccess { result ->
                     state.output = result.plaintext
                     state.status = statusFor(result.signature)
+                    haptics.success()
                 }.onFailure { e ->
                     if (e is CancellationException) throw e
                     when (e) {
@@ -533,8 +554,12 @@ private fun DecryptWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Boo
                         is PgpService.WrongPassphraseException -> {
                             state.status = "Wrong passphrase for ${e.record.displayName} — try again" to StatusType.ERROR
                             passphraseDialogKey = e.record
+                            haptics.error()
                         }
-                        else -> state.status = (e.message ?: "Decryption failed") to StatusType.ERROR
+                        else -> {
+                            state.status = (e.message ?: "Decryption failed") to StatusType.ERROR
+                            haptics.error()
+                        }
                     }
                 }
             } finally {
@@ -592,6 +617,7 @@ private fun DecryptWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Boo
 
 @Composable
 private fun SignWorkflow(state: SignState, keys: List<KeyRecord>, isWide: Boolean, scope: CoroutineScope) {
+    val haptics = rememberHaptics()
     val privateKeys = keys.filter { it.hasPrivate }
 
     fun doSign() {
@@ -609,9 +635,11 @@ private fun SignWorkflow(state: SignState, keys: List<KeyRecord>, isWide: Boolea
                 }.onSuccess { result ->
                     state.output = result
                     state.status = "Signed successfully" to StatusType.SUCCESS
+                    haptics.success()
                 }.onFailure { e ->
                     if (e is CancellationException) throw e
                     state.status = (e.message ?: "Signing failed") to StatusType.ERROR
+                    haptics.error()
                 }
             } finally {
                 state.working = false
@@ -665,6 +693,7 @@ private fun SignWorkflow(state: SignState, keys: List<KeyRecord>, isWide: Boolea
 
 @Composable
 private fun VerifyWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Boolean, scope: CoroutineScope) {
+    val haptics = rememberHaptics()
     val publicKeys = keys.filter { it.hasPublic }
 
     fun doVerify() {
@@ -680,9 +709,11 @@ private fun VerifyWorkflow(state: ModeState, keys: List<KeyRecord>, isWide: Bool
                 }.onSuccess { result ->
                     state.output = result
                     state.status = "Signature verified" to StatusType.SUCCESS
+                    haptics.success()
                 }.onFailure { e ->
                     if (e is CancellationException) throw e
                     state.status = (e.message ?: "Verification failed") to StatusType.ERROR
+                    haptics.error()
                 }
             } finally {
                 state.working = false

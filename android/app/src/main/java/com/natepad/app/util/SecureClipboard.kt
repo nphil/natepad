@@ -10,6 +10,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -25,11 +28,19 @@ object SecureClipboard {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var clearJob: Job? = null
 
+    private val _countdown = MutableStateFlow<Int?>(null)
+
+    /** Seconds until the pending sensitive clip is cleared, or null when none is pending. */
+    val countdown: StateFlow<Int?> = _countdown.asStateFlow()
+
     /** Plain copy for non-secret content (ciphertext, public keys, signed messages). */
     fun copy(context: Context, text: String, label: String = "NatePad") {
         val cm = context.applicationContext
             .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText(label, text))
+        // The new clip overwrote any pending secret, so the countdown is moot.
+        clearJob?.cancel()
+        _countdown.value = null
     }
 
     fun copySensitive(context: Context, text: String, label: String = "NatePad") {
@@ -44,7 +55,14 @@ object SecureClipboard {
 
         clearJob?.cancel()
         clearJob = scope.launch {
-            delay(CLEAR_AFTER_MS)
+            try {
+                for (remaining in (CLEAR_AFTER_MS / 1000L).toInt() downTo 1) {
+                    _countdown.value = remaining
+                    delay(1_000)
+                }
+            } finally {
+                _countdown.value = null
+            }
             runCatching {
                 // Only wipe if our secret is still what's on the clipboard.
                 val current = cm.primaryClip?.getItemAt(0)?.text?.toString()
