@@ -409,19 +409,18 @@ struct EncryptWorkflow: View {
             Button {
                 Task { await runEncrypt() }
             } label: {
-                HStack {
-                    Spacer()
+                Group {
                     if isWorking {
-                        ProgressView().controlSize(.regular)
+                        ProgressView()
                     } else {
                         Label(signerID == nil ? "Encrypt Message" : "Encrypt & Sign Message", systemImage: "lock.fill")
-                            .font(.body.weight(.bold))
+                            .font(.body.weight(.semibold))
                     }
-                    Spacer()
                 }
-                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.glassProminent)
+            .controlSize(.large)
             .disabled(inputText.isEmpty || recipientIDs.isEmpty || isWorking)
         }
         .padding(.horizontal, 16)
@@ -488,11 +487,15 @@ struct EncryptWorkflow: View {
                     
                     Spacer()
                     
-                    Button("Done") {
+                    Button {
                         showResultSheet = false
                         dismiss()
+                    } label: {
+                        Text("Done")
+                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glassProminent)
+                    .controlSize(.large)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 24)
                 }
@@ -665,19 +668,18 @@ struct DecryptWorkflow: View {
             Button {
                 Task { await runDecrypt() }
             } label: {
-                HStack {
-                    Spacer()
+                Group {
                     if isWorking {
-                        ProgressView().controlSize(.regular)
+                        ProgressView()
                     } else {
                         Label("Decrypt Message", systemImage: "lock.open.fill")
-                            .font(.body.weight(.bold))
+                            .font(.body.weight(.semibold))
                     }
-                    Spacer()
                 }
-                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.glassProminent)
+            .controlSize(.large)
             .disabled(inputText.isEmpty || isWorking)
         }
         .padding(.horizontal, 16)
@@ -756,11 +758,15 @@ struct DecryptWorkflow: View {
                     
                     Spacer()
                     
-                    Button("Done") {
+                    Button {
                         showResultSheet = false
                         dismiss()
+                    } label: {
+                        Text("Done")
+                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glassProminent)
+                    .controlSize(.large)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 24)
                 }
@@ -955,19 +961,18 @@ struct SignWorkflow: View {
             Button {
                 Task { await runSign() }
             } label: {
-                HStack {
-                    Spacer()
+                Group {
                     if isWorking {
-                        ProgressView().controlSize(.regular)
+                        ProgressView()
                     } else {
                         Label("Sign Message", systemImage: "signature")
-                            .font(.body.weight(.bold))
+                            .font(.body.weight(.semibold))
                     }
-                    Spacer()
                 }
-                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.glassProminent)
+            .controlSize(.large)
             .disabled(inputText.isEmpty || signerID == nil || isWorking)
         }
         .padding(.horizontal, 16)
@@ -1010,7 +1015,7 @@ struct SignWorkflow: View {
                             Button {
                                 UIPasteboard.general.string = armoredOutput
                             } label: {
-                                Label("Copy Signed PGP Block", systemImage: "doc.on.doc")
+                                Label("Copy PGP Block", systemImage: "doc.on.doc")
                             }
                             .buttonStyle(.glass)
                             .controlSize(.small)
@@ -1026,11 +1031,15 @@ struct SignWorkflow: View {
                     
                     Spacer()
                     
-                    Button("Done") {
+                    Button {
                         showResultSheet = false
                         dismiss()
+                    } label: {
+                        Text("Done")
+                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glassProminent)
+                    .controlSize(.large)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 24)
                 }
@@ -1169,19 +1178,18 @@ struct VerifyWorkflow: View {
             Button {
                 Task { await runVerify() }
             } label: {
-                HStack {
-                    Spacer()
+                Group {
                     if isWorking {
-                        ProgressView().controlSize(.regular)
+                        ProgressView()
                     } else {
                         Label("Verify Message", systemImage: "checkmark.seal.fill")
-                            .font(.body.weight(.bold))
+                            .font(.body.weight(.semibold))
                     }
-                    Spacer()
                 }
-                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.glassProminent)
+            .controlSize(.large)
             .disabled(inputText.isEmpty || isWorking)
         }
         .padding(.horizontal, 16)
@@ -1249,11 +1257,15 @@ struct VerifyWorkflow: View {
                     
                     Spacer()
                     
-                    Button("Done") {
+                    Button {
                         showResultSheet = false
                         dismiss()
+                    } label: {
+                        Text("Done")
+                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glassProminent)
+                    .controlSize(.large)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 24)
                 }
