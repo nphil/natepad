@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material3.AlertDialog
@@ -120,6 +121,7 @@ fun KeysScreen(
     var importPrefill by remember { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<KeyRecord?>(null) }
     var qrTarget by remember { mutableStateOf<KeyRecord?>(null) }
+    var revokeTarget by remember { mutableStateOf<KeyRecord?>(null) }
     var statusMsg by remember { mutableStateOf<Pair<String, StatusType>?>(null) }
 
     // List-detail scaffold: single pane on compact windows (detail slides over the
@@ -195,6 +197,19 @@ fun KeysScreen(
 
     qrTarget?.let { rec ->
         QrDialog(record = rec, onDismiss = { qrTarget = null })
+    }
+
+    revokeTarget?.let { rec ->
+        RevocationDialog(
+            record = rec,
+            onDismiss = { revokeTarget = null },
+            onGenerated = { cert ->
+                revokeTarget = null
+                shareText(context, cert, "${rec.displayName}_revocation.asc")
+                statusMsg = ("Revocation certificate ready — store it somewhere safe, " +
+                    "separate from your key backup") to StatusType.SUCCESS
+            }
+        )
     }
 
     if (showGenerateDialog) {
@@ -308,6 +323,7 @@ fun KeysScreen(
                         onBack = { scope.launch { navigator.navigateBack() } },
                         onShare = { armored, name -> shareText(context, armored, name) },
                         onShowQr = { qrTarget = record },
+                        onRevoke = { revokeTarget = record },
                         onDelete = { deleteTarget = record }
                     )
                 } else {
@@ -499,6 +515,7 @@ private fun KeyDetailPane(
     onBack: () -> Unit,
     onShare: (String, String) -> Unit,
     onShowQr: () -> Unit,
+    onRevoke: () -> Unit,
     onDelete: () -> Unit
 ) {
     Column(
@@ -578,6 +595,13 @@ private fun KeyDetailPane(
             if (record.hasPublic) {
                 OutlinedButton(onClick = onShowQr) {
                     Icon(Icons.Default.QrCode2, contentDescription = "Show QR code", modifier = Modifier.size(18.dp))
+                }
+            }
+            if (record.hasPrivate) {
+                OutlinedButton(onClick = onRevoke) {
+                    Icon(Icons.Outlined.Block, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Revocation")
                 }
             }
             IconButton(onClick = onDelete) {
@@ -711,6 +735,80 @@ private fun ImportKeyDialog(
             Button(onClick = { onImport(armored) }, enabled = armored.isNotBlank()) { Text("Import") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+// ── Revocation dialog ─────────────────────────────────────────────────────────
+
+@Composable
+private fun RevocationDialog(
+    record: KeyRecord,
+    onDismiss: () -> Unit,
+    onGenerated: (String) -> Unit
+) {
+    var passphrase by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var working by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    AlertDialog(
+        onDismissRequest = { if (!working) onDismiss() },
+        title = { Text("Revocation Certificate") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Creates a revoked copy of this public key. If you ever lose the key or " +
+                        "its passphrase, sharing this certificate tells everyone to stop using " +
+                        "the key. Generate it now and store it somewhere safe — anyone who has " +
+                        "it can revoke your key.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                OutlinedTextField(
+                    value = passphrase,
+                    onValueChange = { passphrase = it },
+                    label = { Text("Key passphrase") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    enabled = !working,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                error?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = !working && passphrase.isNotEmpty(),
+                onClick = {
+                    error = null
+                    working = true
+                    scope.launch {
+                        runCatching {
+                            withContext(Dispatchers.Default) {
+                                PgpService.generateRevocationCertificate(record, passphrase)
+                            }
+                        }.onSuccess { cert ->
+                            onGenerated(cert)
+                        }.onFailure { e ->
+                            error = when (e) {
+                                is PgpService.WrongPassphraseException -> "Wrong passphrase — try again"
+                                else -> e.message ?: "Could not generate the certificate"
+                            }
+                        }
+                        working = false
+                    }
+                }
+            ) {
+                if (working) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Generate")
+                }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !working) { Text("Cancel") } }
     )
 }
 

@@ -6,6 +6,7 @@ import org.bouncycastle.bcpg.ArmoredOutputStream
 import org.bouncycastle.bcpg.CompressionAlgorithmTags
 import org.bouncycastle.bcpg.HashAlgorithmTags
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags
+import org.bouncycastle.bcpg.sig.RevocationReasonTags
 import org.bouncycastle.openpgp.PGPCompressedData
 import org.bouncycastle.openpgp.PGPCompressedDataGenerator
 import org.bouncycastle.openpgp.PGPEncryptedDataGenerator
@@ -24,6 +25,7 @@ import org.bouncycastle.openpgp.PGPSecretKeyRing
 import org.bouncycastle.openpgp.PGPSignature
 import org.bouncycastle.openpgp.PGPSignatureGenerator
 import org.bouncycastle.openpgp.PGPSignatureList
+import org.bouncycastle.openpgp.PGPSignatureSubpacketGenerator
 import org.bouncycastle.openpgp.PGPUtil
 import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder
@@ -106,6 +108,51 @@ object PgpService {
 
         val fp = publicRing.publicKey.fingerprint.joinToString("") { "%02X".format(it) }
         return GeneratedKey(armoredPub, armoredPriv, fp, userId)
+    }
+
+    // ── Revocation ────────────────────────────────────────────────────────────
+
+    /**
+     * Produces the key's public ring with a KEY_REVOCATION self-signature
+     * attached — a "revoked public key". Importing it anywhere (GnuPG,
+     * NatePad, key servers) marks the key as revoked, which makes it both a
+     * revocation certificate and safe to generate in advance.
+     */
+    fun generateRevocationCertificate(record: KeyRecord, passphrase: String): String {
+        require(record.hasPrivate) { "Revocation requires the private key" }
+        val secretRing = loadSecretRing(record.armoredPrivate)
+        val secretKey = secretRing.secretKey
+        val privKey = try {
+            secretKey.extractPrivateKey(
+                JcePBESecretKeyDecryptorBuilder().setProvider("BC").build(passphrase.toCharArray())
+            )
+        } catch (e: PGPException) {
+            throw WrongPassphraseException(record)
+        }
+
+        val sigGen = PGPSignatureGenerator(
+            JcaPGPContentSignerBuilder(secretKey.publicKey.algorithm, HashAlgorithmTags.SHA256)
+                .setProvider("BC")
+        )
+        sigGen.init(PGPSignature.KEY_REVOCATION, privKey)
+        sigGen.setHashedSubpackets(
+            PGPSignatureSubpacketGenerator().apply {
+                setRevocationReason(
+                    false,
+                    RevocationReasonTags.NO_REASON,
+                    "Revocation certificate generated in advance"
+                )
+            }.generate()
+        )
+
+        val pubRing = loadPublicRing(record.armoredPublic)
+        val master = pubRing.publicKey
+        val revokedMaster = PGPPublicKey.addCertification(master, sigGen.generateCertification(master))
+        val revokedRing = PGPPublicKeyRing.insertPublicKey(pubRing, revokedMaster)
+
+        val out = ByteArrayOutputStream()
+        ArmoredOutputStream(out).use { revokedRing.encode(it) }
+        return out.toString(Charsets.UTF_8)
     }
 
     // ── Key parsing ───────────────────────────────────────────────────────────
