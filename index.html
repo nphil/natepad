@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="NatePad — Encrypt, decrypt, sign, and verify PGP messages directly in your browser. Fully offline, no server needed.">
+  <meta name="theme-color" content="#13131f">
+  <title>NatePad — PGP Notepad</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+  <!-- ─── Top Bar ─── -->
+  <header class="top-bar">
+    <span class="shield-icon">🛡️</span>
+    <h1>NatePad PGP</h1>
+  </header>
+
+  <!-- ─── Tab Bar ─── -->
+  <nav class="tab-bar" role="tablist">
+    <button class="tab-btn active" role="tab" data-tab="dashboard" aria-selected="true" id="tab-dashboard">
+      <span>🏠</span> Dashboard
+    </button>
+    <button class="tab-btn" role="tab" data-tab="keys" aria-selected="false" id="tab-keys">
+      <span>🔑</span> Keys
+    </button>
+    <button class="tab-btn" role="tab" data-tab="settings" aria-selected="false" id="tab-settings">
+      <span>⚙️</span> Settings
+    </button>
+  </nav>
+
+  <!-- ─── Content ─── -->
+  <main class="tab-content">
+
+    <!-- ═══ Dashboard ═══ -->
+    <section class="tab-pane active" id="pane-dashboard" role="tabpanel" aria-labelledby="tab-dashboard">
+
+      <div class="glass-card hero-card">
+        <span class="hero-icon">🔒</span>
+        <h2>NatePad PGP</h2>
+        <p>Securely encrypt, decrypt, sign, and verify messages with bank-grade security — entirely in your browser.</p>
+      </div>
+
+      <div id="no-keys-warning" class="warn-banner" style="display:none;">
+        <span class="warn-icon">⚠️</span>
+        <span class="warn-text">No PGP keys found. Generate or import a key pair under the <strong>Keys</strong> tab to enable all PGP features.</span>
+      </div>
+
+      <div class="action-grid">
+        <div class="glass-card interactive action-card" data-action="encrypt" tabindex="0" role="button" id="btn-encrypt">
+          <span class="action-icon">🔐</span>
+          <div class="action-title">Encrypt</div>
+          <div class="action-desc">Secure a message for recipients</div>
+        </div>
+        <div class="glass-card interactive action-card" data-action="decrypt" tabindex="0" role="button" id="btn-decrypt">
+          <span class="action-icon">🔓</span>
+          <div class="action-title">Decrypt</div>
+          <div class="action-desc">Open an encrypted message</div>
+        </div>
+        <div class="glass-card interactive action-card" data-action="sign" tabindex="0" role="button" id="btn-sign">
+          <span class="action-icon">✍️</span>
+          <div class="action-title">Sign</div>
+          <div class="action-desc">Digitally sign a plaintext message</div>
+        </div>
+        <div class="glass-card interactive action-card" data-action="verify" tabindex="0" role="button" id="btn-verify">
+          <span class="action-icon">✅</span>
+          <div class="action-title">Verify</div>
+          <div class="action-desc">Verify a message's signature</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Keys ═══ -->
+    <section class="tab-pane" id="pane-keys" role="tabpanel" aria-labelledby="tab-keys">
+      <div class="keys-toolbar">
+        <button class="btn btn-primary btn-sm" id="btn-gen-key">🔑 Generate Key</button>
+        <button class="btn btn-ghost btn-sm" id="btn-import-key">📥 Import Key</button>
+      </div>
+      <div id="key-list" class="key-list"></div>
+      <div id="keys-empty" class="empty-state">
+        <div class="empty-icon">🔑</div>
+        <h3>No Keys Yet</h3>
+        <p>Generate or import a PGP key pair to get started with encryption and signing.</p>
+      </div>
+    </section>
+
+    <!-- ═══ Settings ═══ -->
+    <section class="tab-pane" id="pane-settings" role="tabpanel" aria-labelledby="tab-settings">
+      <div class="settings-section">
+        <h3>Theme</h3>
+        <div id="theme-grid" class="theme-grid"></div>
+      </div>
+      <div class="about-section">
+        <p>
+          <strong>NatePad Web</strong> v2.1<br>
+          Built with <a href="https://openpgpjs.org" target="_blank" rel="noopener">OpenPGP.js</a>.<br>
+          100% offline — no data leaves your browser.<br><br>
+          <a href="https://github.com/nphil/natepad" target="_blank" rel="noopener">GitHub</a> | <a href="https://nphil.github.io/natepad/" target="_blank" rel="noopener">Live Web Version</a>
+        </p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ─── Toasts ─── -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ═══ DIALOGS ═══ -->
+
+<!-- Encrypt Dialog -->
+<dialog id="dlg-encrypt">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>🔐 Encrypt</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="field">
+      <label for="encrypt-recipients">Recipients</label>
+      <select id="encrypt-recipients"><option value="">Select a public key…</option></select>
+      <div class="chip-list" id="encrypt-chips"></div>
+    </div>
+    <div class="field">
+      <label for="encrypt-message">Message</label>
+      <textarea id="encrypt-message" placeholder="Type or paste your message…" rows="6"></textarea>
+      <div class="char-count" id="encrypt-count">0 chars</div>
+    </div>
+    <button class="btn btn-primary" id="encrypt-submit" style="width:100%">Encrypt Message</button>
+    <div id="encrypt-result"></div>
+  </div>
+</dialog>
+
+<!-- Decrypt Dialog -->
+<dialog id="dlg-decrypt">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>🔓 Decrypt</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="field">
+      <label for="decrypt-key">Private Key</label>
+      <select id="decrypt-key"><option value="">Auto-detect</option></select>
+    </div>
+    <div class="field">
+      <label for="decrypt-passphrase">Passphrase</label>
+      <input type="password" id="decrypt-passphrase" placeholder="Enter passphrase (if needed)">
+    </div>
+    <div class="field">
+      <label for="decrypt-message">Encrypted Message (PGP block)</label>
+      <textarea id="decrypt-message" placeholder="Paste PGP encrypted message…" rows="6"></textarea>
+      <div class="char-count" id="decrypt-count">0 chars</div>
+    </div>
+    <button class="btn btn-primary" id="decrypt-submit" style="width:100%">Decrypt Message</button>
+    <div id="decrypt-result"></div>
+  </div>
+</dialog>
+
+<!-- Sign Dialog -->
+<dialog id="dlg-sign">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>✍️ Sign</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="field">
+      <label for="sign-key">Signing Key</label>
+      <select id="sign-key"><option value="">Select a private key…</option></select>
+    </div>
+    <div class="field">
+      <label for="sign-passphrase">Passphrase</label>
+      <input type="password" id="sign-passphrase" placeholder="Enter passphrase (if needed)">
+    </div>
+    <div class="field">
+      <label for="sign-message">Message to Sign</label>
+      <textarea id="sign-message" placeholder="Type your message…" rows="6"></textarea>
+      <div class="char-count" id="sign-count">0 chars</div>
+    </div>
+    <button class="btn btn-primary" id="sign-submit" style="width:100%">Sign Message</button>
+    <div id="sign-result"></div>
+  </div>
+</dialog>
+
+<!-- Verify Dialog -->
+<dialog id="dlg-verify">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>✅ Verify</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="field">
+      <label for="verify-message">Signed Message (PGP cleartext)</label>
+      <textarea id="verify-message" placeholder="Paste the PGP signed message…" rows="6"></textarea>
+      <div class="char-count" id="verify-count">0 chars</div>
+    </div>
+    <button class="btn btn-primary" id="verify-submit" style="width:100%">Verify Signature</button>
+    <div id="verify-result"></div>
+  </div>
+</dialog>
+
+<!-- Generate Key Dialog -->
+<dialog id="dlg-genkey">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>🔑 Generate Key Pair</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="field">
+      <label for="genkey-name">Name</label>
+      <input type="text" id="genkey-name" placeholder="John Doe">
+    </div>
+    <div class="field">
+      <label for="genkey-email">Email</label>
+      <input type="email" id="genkey-email" placeholder="john@example.com">
+    </div>
+    <div class="field">
+      <label>Key Type</label>
+      <div class="keygen-options">
+        <button class="keygen-opt selected" data-type="ecc" type="button">
+          ECC<small>Curve25519 · Fast</small>
+        </button>
+        <button class="keygen-opt" data-type="rsa" type="button">
+          RSA<small>4096-bit · Classic</small>
+        </button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="genkey-passphrase">Passphrase (optional)</label>
+      <input type="password" id="genkey-passphrase" placeholder="Protect your private key">
+    </div>
+    <button class="btn btn-primary" id="genkey-submit" style="width:100%">Generate Key Pair</button>
+    <div id="genkey-result"></div>
+  </div>
+</dialog>
+
+<!-- Import Key Dialog -->
+<dialog id="dlg-import">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>📥 Import Key</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="field">
+      <label for="import-armor">Key (armored PGP block)</label>
+      <textarea id="import-armor" placeholder="Paste your PGP public or private key here…" rows="8"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" id="import-submit" style="flex:1">Import Key</button>
+      <button class="btn btn-ghost" id="import-file-btn" style="flex:1">📁 From File</button>
+    </div>
+    <input type="file" id="import-file-input" accept=".asc,.pgp,.gpg,.key,.pub,.txt" style="display:none">
+    <div id="import-result"></div>
+  </div>
+</dialog>
+
+<!-- Export Key Dialog -->
+<dialog id="dlg-export">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>📤 Export Key</h2>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div id="export-content"></div>
+  </div>
+</dialog>
+
+<script src="openpgp.min.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
