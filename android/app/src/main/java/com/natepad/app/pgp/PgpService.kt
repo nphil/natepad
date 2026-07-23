@@ -159,6 +159,12 @@ object PgpService {
             }.toString(Charsets.UTF_8)
         } ?: ""
 
+        // validSeconds comes from the newest self-signature; 0 means no expiry.
+        val validSeconds = masterKey.validSeconds
+        val expiresAt = if (validSeconds > 0) {
+            masterKey.creationTime.time + validSeconds * 1000L
+        } else null
+
         return KeyRecord(
             id = fp,
             fingerprint = fp,
@@ -167,7 +173,8 @@ object PgpService {
             hasPrivate = secretRing != null,
             armoredPublic = armoredPub,
             armoredPrivate = armoredPriv,
-            createdAt = masterKey.creationTime.time
+            createdAt = masterKey.creationTime.time,
+            expiresAt = expiresAt
         )
     }
 

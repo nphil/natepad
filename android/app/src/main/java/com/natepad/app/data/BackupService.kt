@@ -1,5 +1,6 @@
 package com.natepad.app.data
 
+import com.natepad.app.pgp.PgpService
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -120,7 +121,7 @@ object BackupService {
         val payload = json.decodeFromString<Payload>(plaintext.toString(Charsets.UTF_8))
         return payload.keys.map { k ->
             val fp = k.fingerprint.uppercase()
-            KeyRecord(
+            val base = KeyRecord(
                 id = fp,
                 fingerprint = fp,
                 userIds = k.userIds,
@@ -129,6 +130,15 @@ object BackupService {
                 armoredPublic = k.armoredPublic ?: "",
                 armoredPrivate = k.armoredPrivate ?: ""
             )
+            // The backup payload carries only key material; creation and expiry
+            // are re-derived from the key itself so restored records don't show
+            // "created today" or miss expiration warnings.
+            if (!base.hasPublic) base else runCatching {
+                PgpService.parseKeys(base.armoredPublic)
+                    .firstNotNullOfOrNull { PgpService.parsedKeyToRecord(it) }
+            }.getOrNull()?.let { parsed ->
+                base.copy(createdAt = parsed.createdAt, expiresAt = parsed.expiresAt)
+            } ?: base
         }
     }
 

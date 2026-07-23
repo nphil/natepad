@@ -82,6 +82,7 @@ import com.natepad.app.ui.components.HapticsCallbacks
 import com.natepad.app.ui.components.PgpTextField
 import com.natepad.app.ui.components.RecipientChip
 import com.natepad.app.ui.components.SectionLabel
+import com.natepad.app.ui.components.StatusCard
 import com.natepad.app.ui.components.StatusType
 import com.natepad.app.ui.components.contentWidth
 import com.natepad.app.ui.components.rememberHaptics
@@ -468,6 +469,24 @@ private fun EncryptWorkflow(state: EncryptState, keys: List<KeyRecord>, isWide: 
                     "No public keys yet — import or generate one under Keys.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Encrypting to an expired key still works, but the recipient (or
+            // their correspondents) may treat the key as dead — surface it.
+            val expiredRecipients = state.recipients.filter { it.isExpired }
+            val expiringRecipients = state.recipients.filter { it.expiresWithin(30) }
+            when {
+                expiredRecipients.isNotEmpty() -> StatusCard(
+                    message = "Expired recipient key: " +
+                        expiredRecipients.joinToString { it.displayName } +
+                        ". You can still encrypt, but consider asking for a current key.",
+                    type = StatusType.WARNING
+                )
+                expiringRecipients.isNotEmpty() -> StatusCard(
+                    message = "Key expiring soon: " +
+                        expiringRecipients.joinToString { it.displayName },
+                    type = StatusType.WARNING
                 )
             }
 

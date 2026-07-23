@@ -11,8 +11,20 @@ data class KeyRecord(
     val hasPublic: Boolean,
     val armoredPublic: String,
     val armoredPrivate: String,  // empty string if public-only
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val expiresAt: Long? = null  // epoch ms from the key's self-signature; null = never
 ) {
+    /** True once the key's own expiration date has passed. */
+    val isExpired: Boolean
+        get() = expiresAt != null && expiresAt < System.currentTimeMillis()
+
+    /** True while the key is still valid but expires within [days] days. */
+    fun expiresWithin(days: Int): Boolean {
+        val exp = expiresAt ?: return false
+        val now = System.currentTimeMillis()
+        return exp >= now && exp < now + days * 86_400_000L
+    }
+
     /** Returns the primary User ID string (first entry, or "Unknown Key") */
     val primaryUserId: String
         get() = userIds.firstOrNull() ?: "Unknown Key"

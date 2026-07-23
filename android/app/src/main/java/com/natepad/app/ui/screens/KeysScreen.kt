@@ -483,6 +483,7 @@ private fun KeyCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                ExpiryLabel(record, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -552,6 +553,7 @@ private fun KeyDetailPane(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        ExpiryLabel(record, style = MaterialTheme.typography.bodySmall, neverExpiresText = "Never expires")
 
         Spacer(Modifier.height(20.dp))
         FlowRow(
@@ -786,6 +788,36 @@ private fun QrDialog(record: KeyRecord, onDismiss: () -> Unit) {
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } }
     )
+}
+
+/**
+ * One-line expiry state for a key: red once expired, tertiary "expires soon"
+ * warning inside 30 days, otherwise the plain date (or [neverExpiresText]).
+ */
+@Composable
+private fun ExpiryLabel(
+    record: KeyRecord,
+    style: androidx.compose.ui.text.TextStyle,
+    neverExpiresText: String? = null
+) {
+    val expiresAt = record.expiresAt
+    if (expiresAt == null) {
+        if (neverExpiresText != null) {
+            Text(
+                text = neverExpiresText,
+                style = style,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        return
+    }
+    val date = DateFormat.getDateInstance().format(Date(expiresAt))
+    val (text, color) = when {
+        record.isExpired -> "Expired $date" to MaterialTheme.colorScheme.error
+        record.expiresWithin(30) -> "Expires $date" to MaterialTheme.colorScheme.tertiary
+        else -> "Expires $date" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Text(text = text, style = style, color = color)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
