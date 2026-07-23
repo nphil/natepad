@@ -17,6 +17,14 @@
       "category": "utilities",
       "versions": [
         {
+          "version": "2.11.2",
+          "buildVersion": "2.11.2",
+          "date": "2026-07-23T02:48:40Z",
+          "localizedDescription": "## What's new in 2.11.2\n\n- fix: key-row action buttons lost their titles, showing bare icon pills\n\n---\nUnsigned IPA \u2014 sideload with AltStore or Feather.\n",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.11.2/Natepad.ipa",
+          "size": 1107914
+        },
+        {
           "version": "2.11.1",
           "buildVersion": "2.11.1",
           "date": "2026-07-23T02:41:52Z",
