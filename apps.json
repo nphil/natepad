@@ -17,6 +17,14 @@
       "category": "utilities",
       "versions": [
         {
+          "version": "2.12.0",
+          "buildVersion": "2.12.0",
+          "date": "2026-07-23T02:49:54Z",
+          "localizedDescription": "## What's new in 2.12.0\n\n- fix: skip onboarding for existing installs\n- feat: first-run onboarding and in-app help\n- feat: revocation certificate generation\n- feat: key expiration awareness\n- feat: clipboard-clear countdown and semantic haptics\n- feat: share/open-with intake and recents privacy\n- fix: keep stored private key when re-importing its public copy\n\n---\nUnsigned IPA \u2014 sideload with AltStore or Feather.\n",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.12.0/Natepad.ipa",
+          "size": 1107915
+        },
+        {
           "version": "2.11.2",
           "buildVersion": "2.11.2",
           "date": "2026-07-23T02:48:40Z",
