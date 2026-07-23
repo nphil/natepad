@@ -113,9 +113,9 @@ struct LockScreen: View {
                 } label: {
                     Label("Unlock", systemImage: "faceid")
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
                 }
                 .buttonStyle(.glassProminent)
+                .controlSize(.large)
                 .padding(.horizontal, 40)
                 Spacer().frame(height: 40)
             }

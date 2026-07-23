@@ -171,32 +171,39 @@ struct KeyRow: View {
                 .font(.caption2.monospaced())
                 .foregroundStyle(.tertiary)
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 if record.hasPublic {
                     Button {
                         exportContext = .init(record: record, kind: .publicKey)
                     } label: {
-                        Label("Share Public", systemImage: "square.and.arrow.up")
-                            .multilineTextAlignment(.center)
+                        Label("Public", systemImage: "square.and.arrow.up")
+                            .lineLimit(1)
+                            .fixedSize()
                     }
                     .buttonStyle(.glass)
+                    .controlSize(.small)
                 }
                 if record.hasPrivate {
                     Button {
                         exportContext = .init(record: record, kind: .privateKey)
                     } label: {
-                        Label("Share Private", systemImage: "square.and.arrow.up")
-                            .multilineTextAlignment(.center)
+                        Label("Private", systemImage: "square.and.arrow.up")
+                            .lineLimit(1)
+                            .fixedSize()
                     }
                     .buttonStyle(.glass)
+                    .controlSize(.small)
                 }
                 if record.hasPublic {
                     Button {
                         qrRecord = record
                     } label: {
                         Label("QR", systemImage: "qrcode")
+                            .lineLimit(1)
+                            .fixedSize()
                     }
                     .buttonStyle(.glass)
+                    .controlSize(.small)
                 }
                 Spacer()
             }
