@@ -55,6 +55,8 @@ import com.natepad.app.ui.screens.SettingsScreen
 import com.natepad.app.ui.theme.AppTheme
 import com.natepad.app.ui.theme.NatepadTheme
 import com.natepad.app.ui.theme.NatepadMotion
+import com.natepad.app.util.PgpContentDetector
+import com.natepad.app.util.PgpContentKind
 
 private enum class NavDestination(
     val label: String,
@@ -75,7 +77,9 @@ fun NatepadApp(
     showUnlockButton: Boolean,
     onUnlock: () -> Unit,
     selectedTheme: AppTheme = AppTheme.MATERIAL_YOU,
-    onThemeChange: (AppTheme) -> Unit = {}
+    onThemeChange: (AppTheme) -> Unit = {},
+    externalText: String? = null,
+    onExternalTextConsumed: () -> Unit = {}
 ) {
     NatepadTheme(appTheme = selectedTheme) {
         var currentDest by rememberSaveable { mutableStateOf(NavDestination.HOME) }
@@ -85,6 +89,36 @@ fun NatepadApp(
         // never loses what was typed. Cleared only when the process ends.
         val cryptoState = remember { CryptoScreenState() }
         var keyImportRequest by remember { mutableStateOf<String?>(null) }
+
+        fun openWithInput(mode: CryptoMode, text: String) {
+            cryptoMode = mode
+            cryptoState.stateFor(mode).let { st ->
+                st.input = text
+                st.output = ""
+                st.status = null
+            }
+            currentDest = NavDestination.HOME
+            showCrypto = true
+        }
+
+        // Text shared into the app (share sheet or Open-with) routes by content:
+        // PGP blocks go to the matching workflow, keys to import, and anything
+        // else becomes the plaintext of a fresh Encrypt.
+        LaunchedEffect(externalText) {
+            externalText?.let { text ->
+                when (PgpContentDetector.detect(text)) {
+                    PgpContentKind.ENCRYPTED_MESSAGE -> openWithInput(CryptoMode.DECRYPT, text)
+                    PgpContentKind.SIGNED_MESSAGE -> openWithInput(CryptoMode.VERIFY, text)
+                    PgpContentKind.PUBLIC_KEY, PgpContentKind.PRIVATE_KEY -> {
+                        keyImportRequest = text
+                        showCrypto = false
+                        currentDest = NavDestination.KEYS
+                    }
+                    null -> openWithInput(CryptoMode.ENCRYPT, text)
+                }
+                onExternalTextConsumed()
+            }
+        }
 
         // System back from a crypto workflow returns Home instead of closing the app.
         BackHandler(enabled = showCrypto && !isLocked) { showCrypto = false }
@@ -158,15 +192,7 @@ fun NatepadApp(
                             },
                             onNavigateToKeys = { currentDest = NavDestination.KEYS },
                             modifier = Modifier.fillMaxSize(),
-                            onOpenWithInput = { mode, text ->
-                                cryptoMode = mode
-                                cryptoState.stateFor(mode).let { st ->
-                                    st.input = text
-                                    st.output = ""
-                                    st.status = null
-                                }
-                                showCrypto = true
-                            },
+                            onOpenWithInput = { mode, text -> openWithInput(mode, text) },
                             onImportKey = { text ->
                                 keyImportRequest = text; currentDest = NavDestination.KEYS
                             }

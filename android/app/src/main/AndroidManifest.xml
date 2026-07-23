@@ -23,11 +23,60 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Share text into NatePad: PGP blocks route to Decrypt/Verify/Import,
+                 anything else lands in Encrypt as the plaintext. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <!-- Share an armored PGP file (.asc et al). Providers type these
+                 inconsistently, so accept the canonical PGP MIMEs plus the
+                 octet-stream fallback most file managers use. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pgp-encrypted" />
+                <data android:mimeType="application/pgp-keys" />
+                <data android:mimeType="application/pgp-signature" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+            <!-- Tap-to-open .asc/.pgp/.gpg with a proper PGP MIME type. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pgp-encrypted" />
+                <data android:mimeType="application/pgp-keys" />
+                <data android:mimeType="application/pgp-signature" />
+            </intent-filter>
+            <!-- file:// fallback for file managers that set no MIME type. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.asc" />
+                <data android:pathPattern=".*\\.pgp" />
+                <data android:pathPattern=".*\\.gpg" />
+            </intent-filter>
+            <!-- content:// + octet-stream is what DocumentsUI/Drive hand over;
+                 the extension is the only signal left. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:pathPattern=".*\\.asc" />
+                <data android:pathPattern=".*\\.pgp" />
+                <data android:pathPattern=".*\\.gpg" />
             </intent-filter>
         </activity>
 

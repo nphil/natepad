@@ -13,6 +13,9 @@
     <string name="mode_sign">Sign</string>
     <string name="mode_verify">Verify</string>
 
+    <!-- Share target / Open with -->
+    <string name="external_open_failed">Couldn\'t read the shared file</string>
+
     <!-- Biometric -->
     <string name="biometric_prompt_title">Unlock NatePad</string>
     <string name="biometric_prompt_subtitle">Use biometrics to access your encrypted notes</string>
