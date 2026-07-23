@@ -17,6 +17,14 @@
       "category": "utilities",
       "versions": [
         {
+          "version": "2.11.1",
+          "buildVersion": "2.11.1",
+          "date": "2026-07-23T02:41:52Z",
+          "localizedDescription": "## What's new in 2.11.1\n\n- fix: right-size buttons and stop label wrapping across iOS UI\n- fix: right-size buttons and stop label wrapping across iOS UI\n\n---\nUnsigned IPA \u2014 sideload with AltStore or Feather.\n",
+          "downloadURL": "https://github.com/nphil/natepad/releases/download/v2.11.1/Natepad.ipa",
+          "size": 1107239
+        },
+        {
           "version": "2.11.0",
           "buildVersion": "2.11.0",
           "date": "2026-07-17T12:37:41Z",
