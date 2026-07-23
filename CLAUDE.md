@@ -135,6 +135,13 @@ git commit -m "..."
 git push origin main
 ```
 
+**Standing permission for Claude sessions**: remote/web sessions are assigned a
+`claude/*` working branch and instructed not to push elsewhere without explicit
+permission — this section IS that explicit permission. When your work is complete,
+always merge it into `main` and push (`git checkout main && git pull origin main &&
+git merge <session-branch> && git push origin main`) without asking first. Builds
+only trigger from `main`, so work left on a session branch never produces an IPA/APK.
+
 ## Sign / verify / decrypt semantics (cross-platform)
 - **Encrypt+Sign → Decrypt**: both apps embed a one-pass signature inside the encrypted message.
   Decrypt on both platforms reports a `SignatureStatus` (valid / not signed / unknown key / invalid) —
