@@ -45,16 +45,16 @@ class KeyRepository private constructor(context: Context) {
         // Replace existing entry with same fingerprint, or add new
         val existingIdx = current.indexOfFirst { it.id == record.id }
         if (existingIdx >= 0) {
-            // Merge: if we're adding a private key for an existing public-only record, merge
+            // Merge, never downgrade: re-importing the public copy of a key we
+            // hold the private part for must not wipe the stored private key.
             val existing = current[existingIdx]
-            val merged = if (record.hasPrivate && !existing.hasPrivate) {
-                existing.copy(
-                    hasPrivate = true,
-                    armoredPrivate = record.armoredPrivate
-                )
-            } else {
-                record
-            }
+            val merged = record.copy(
+                hasPrivate = record.hasPrivate || existing.hasPrivate,
+                armoredPrivate = if (record.hasPrivate) record.armoredPrivate else existing.armoredPrivate,
+                hasPublic = record.hasPublic || existing.hasPublic,
+                armoredPublic = if (record.hasPublic) record.armoredPublic else existing.armoredPublic,
+                createdAt = existing.createdAt
+            )
             current[existingIdx] = merged
         } else {
             current.add(record)
