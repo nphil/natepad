@@ -176,9 +176,7 @@ struct KeyRow: View {
                     Button {
                         exportContext = .init(record: record, kind: .publicKey)
                     } label: {
-                        Label("Public", systemImage: "square.and.arrow.up")
-                            .lineLimit(1)
-                            .fixedSize()
+                        KeyActionLabel(title: "Public", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(.glass)
                     .controlSize(.small)
@@ -187,9 +185,7 @@ struct KeyRow: View {
                     Button {
                         exportContext = .init(record: record, kind: .privateKey)
                     } label: {
-                        Label("Private", systemImage: "square.and.arrow.up")
-                            .lineLimit(1)
-                            .fixedSize()
+                        KeyActionLabel(title: "Private", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(.glass)
                     .controlSize(.small)
@@ -198,9 +194,7 @@ struct KeyRow: View {
                     Button {
                         qrRecord = record
                     } label: {
-                        Label("QR", systemImage: "qrcode")
-                            .lineLimit(1)
-                            .fixedSize()
+                        KeyActionLabel(title: "QR", systemImage: "qrcode")
                     }
                     .buttonStyle(.glass)
                     .controlSize(.small)
@@ -210,6 +204,26 @@ struct KeyRow: View {
             .padding(.top, 4)
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// Explicit icon+text content for the key-row action buttons.
+/// A plain `Label` resolves to icon-only inside list-row glass buttons,
+/// which left three untitled, indistinguishable pills — so compose manually.
+struct KeyActionLabel: View {
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .font(.footnote.weight(.medium))
+            Text(title)
+                .font(.footnote.weight(.medium))
+        }
+        .lineLimit(1)
+        .fixedSize()
+        .padding(.vertical, 2)
     }
 }
 
